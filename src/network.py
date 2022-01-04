@@ -1,182 +1,387 @@
-import tensorflow as tf
-from tensorflow import keras
+# import package
+
+# model
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torchsummary import summary
+from torch import optim
+
+# dataset and transformation
+from torchvision import datasets
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from torchvision import models
+import os
+
+# display images
+from torchvision import utils
+import matplotlib.pyplot as plt
+
+# utils
 import numpy as np
+from torchsummary import summary
 import time
+import copy
 
-from tensorflow.keras import layers
 
-physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
 
-from tensorflow.python.client import device_lib
-print(device_lib.list_local_devices())
 
-def res_block_down_sample(filters, strides, inputs, **conv_kwargs):
+# Swish activation function
+class Swish(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        return x * self.sigmoid(x)
+
     
-    if strides == 2:
+# SE Block
+class SEBlock(nn.Module):
+    def __init__(self, in_channels, r=4):
+        super().__init__()
+
+        self.squeeze = nn.AdaptiveAvgPool2d((1,1))
+        self.excitation = nn.Sequential(
+            nn.Linear(in_channels, in_channels * r),
+            Swish(),
+            nn.Linear(in_channels * r, in_channels),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.squeeze(x)
+        x = x.view(x.size(0), -1)
+        x = self.excitation(x)
+        x = x.view(x.size(0), x.size(1), 1, 1)
+        return x
+
+class MBConv(nn.Module):
+    expand = 6
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, se_scale=4, p=0.5):
+        super().__init__()
+        # first MBConv is not using stochastic depth
+        self.p = torch.tensor(p).float() if (in_channels == out_channels) else torch.tensor(1).float()
+
+        self.residual = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels * MBConv.expand, 1, stride=stride, padding=0, bias=False),
+            nn.BatchNorm2d(in_channels * MBConv.expand, momentum=0.99, eps=1e-3),
+            Swish(),
+            nn.Conv2d(in_channels * MBConv.expand, in_channels * MBConv.expand, kernel_size=kernel_size,
+                      stride=1, padding=kernel_size//2, bias=False, groups=in_channels*MBConv.expand),
+            nn.BatchNorm2d(in_channels * MBConv.expand, momentum=0.99, eps=1e-3),
+            Swish()
+        )
+
+        self.se = SEBlock(in_channels * MBConv.expand, se_scale)
+
+        self.project = nn.Sequential(
+            nn.Conv2d(in_channels*MBConv.expand, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(out_channels, momentum=0.99, eps=1e-3)
+        )
+
+        self.shortcut = (stride == 1) and (in_channels == out_channels)
+
+    def forward(self, x):
+        # stochastic depth
+        if self.training:
+            if not torch.bernoulli(self.p):
+                return x
+
+        x_shortcut = x
+        x_residual = self.residual(x)
+        x_se = self.se(x_residual)
+
+        x = x_se * x_residual
+        x = self.project(x)
+
+        if self.shortcut:
+            x= x_shortcut + x
+
+        return x
+    
+class SepConv(nn.Module):
+    expand = 1
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, se_scale=4, p=0.5):
+        super().__init__()
+        # first SepConv is not using stochastic depth
+        self.p = torch.tensor(p).float() if (in_channels == out_channels) else torch.tensor(1).float()
+
+        self.residual = nn.Sequential(
+            nn.Conv2d(in_channels * SepConv.expand, in_channels * SepConv.expand, kernel_size=kernel_size,
+                      stride=1, padding=kernel_size//2, bias=False, groups=in_channels*SepConv.expand),
+            nn.BatchNorm2d(in_channels * SepConv.expand, momentum=0.99, eps=1e-3),
+            Swish()
+        )
+
+        self.se = SEBlock(in_channels * SepConv.expand, se_scale)
+
+        self.project = nn.Sequential(
+            nn.Conv2d(in_channels*SepConv.expand, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(out_channels, momentum=0.99, eps=1e-3)
+        )
+
+        self.shortcut = (stride == 1) and (in_channels == out_channels)
+
+    def forward(self, x):
+        # stochastic depth
+        if self.training:
+            if not torch.bernoulli(self.p):
+                return x
+
+        x_shortcut = x
+        x_residual = self.residual(x)
+        x_se = self.se(x_residual)
+
+        x = x_se * x_residual
+        x = self.project(x)
+
+        if self.shortcut:
+            x= x_shortcut + x
+
+        return x
+
+
+
+class EfficientNet(nn.Module):
+    def __init__(self, num_classes=10, width_coef=1., depth_coef=1., scale=1., dropout=0.2, se_scale=4, stochastic_depth=False, p=0.5):
+        super().__init__()
+        channels = [32, 16, 24, 40, 80, 112, 192, 320, 1280]
+        repeats = [1, 2, 2, 3, 3, 4, 1]
+        strides = [1, 2, 2, 2, 1, 2, 1]
+        kernel_size = [3, 3, 5, 3, 5, 5, 3]
+        depth = depth_coef
+        width = width_coef
+
+        channels = [int(x*width) for x in channels]
+        repeats = [int(x*depth) for x in repeats]
+
+        # stochastic depth
+        if stochastic_depth:
+            self.p = p
+            self.step = (1 - 0.5) / (sum(repeats) - 1)
+        else:
+            self.p = 1
+            self.step = 0
+
+
+        # efficient net
+        self.upsample = nn.Upsample(scale_factor=float(scale), mode='bilinear', align_corners=False)
+
+        self.upsample2 = nn.Sequential(
+                            nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False),
+                            nn.Conv2d(1536, 134, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(134, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(134, 134, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(134, momentum=0.99, eps=1e-3),
+                            Swish()
+
+                            ) 
+
+
+        self.upsample3 = nn.Sequential(
+                            nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False),
+                            nn.Conv2d(134, 48, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(48, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(48, 48, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(48, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(48, 48, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(48, momentum=0.99, eps=1e-3),
+                            Swish(),
+                            ) 
+
+        self.upsample4 = nn.Sequential(
+                            nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False),
+                            nn.Conv2d(48, 28, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(28, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(28, 28, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(28, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(28, 28, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(28, momentum=0.99, eps=1e-3),
+                            Swish()
+                            ) 
+
+        self.upsample5 = nn.Sequential(
+                            nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False),
+                            nn.Conv2d(28, 19, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(19, momentum=0.99, eps=1e-3),
+                            Swish(),
+                            nn.Conv2d(19, 19, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(19, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(19, 19, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(19, momentum=0.99, eps=1e-3),
+                            Swish()
+                            ) 
+
+        self.upsample6 = nn.Sequential(
+                            nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False),
+                            nn.Conv2d(19, 64, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(64, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(64, 64, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(64, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(64, 64, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(64, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(64, 64, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(64, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            nn.Conv2d(64, 3, 1, stride=1, bias=False),
+                            nn.Conv2d(3, 1, 1, stride=1, bias=False)
+                            ) 
+
+        self.stage1 = nn.Sequential(
+            nn.Conv2d(9, channels[0],3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(channels[0], momentum=0.99, eps=1e-3)
+        )
+
+        self.stage2 = self._make_Block(SepConv, repeats[0], channels[0], channels[1], kernel_size[0], strides[0], se_scale)
+
+        self.stage3 = self._make_Block(MBConv, repeats[1], channels[1], channels[2], kernel_size[1], strides[1], se_scale)
+
+        self.stage4 = self._make_Block(MBConv, repeats[2], channels[2], channels[3], kernel_size[2], strides[2], se_scale)
+
+        self.stage5 = self._make_Block(MBConv, repeats[3], channels[3], channels[4], kernel_size[3], strides[3], se_scale)
+
+        self.stage6 = self._make_Block(MBConv, repeats[4], channels[4], channels[5], kernel_size[4], strides[4], se_scale)
+
+        self.stage7 = self._make_Block(MBConv, repeats[5], channels[5], channels[6], kernel_size[5], strides[5], se_scale)
+
+        self.stage8 = self._make_Block(MBConv, repeats[6], channels[6], channels[7], kernel_size[6], strides[6], se_scale)
+
+        self.stage9 = nn.Sequential(
+            nn.Conv2d(channels[7], channels[8], 1, stride=1, bias=False),
+            nn.BatchNorm2d(channels[8], momentum=0.99, eps=1e-3),
+            Swish()
+        ) 
+
+
+        self.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        self.dropout = nn.Dropout(p=dropout)
+        self.linear = nn.Linear(channels[8], num_classes)
+
+    def forward(self, x):
+        #x = self.upsample(x)
+        x_1 = self.stage1(x)
+        x_2 = self.stage2(x_1)
+        x_3 = self.stage3(x_2)
+        x_4 = self.stage4(x_3)
+        x = self.stage5(x_4)
+        x_6 = self.stage6(x)
+        x = self.stage7(x_6)
+        x = self.stage8(x)
+        x = self.stage9(x)
+
+        x= self.upsample2(x)
+        x= x_6 + x
+
+        x= self.upsample3(x)
+        x= x_4 + x
+
+        x= self.upsample4(x)
+        x= x_3 + x
+
+        x= self.upsample5(x)
+        x= x_2 + x
         
-        short_cut = keras.layers.AveragePooling2D((2, 2), strides=strides, padding='same', data_format='channels_first')(inputs)
-        short_cut = keras.layers.Conv2D(filters * 2, (1,1), strides=1, padding='same', data_format='channels_first')(short_cut)
-        short_cut = keras.layers.BatchNormalization()(short_cut)
-    
-    else:
-        
-        short_cut = inputs
-        
-    
-    x = keras.layers.BatchNormalization()(inputs)
-    x = keras.layers.Activation("relu")(x)
-    x = keras.layers.Conv2D(filters, (1,1), strides = 1, padding = 'same',data_format = 'channels_first', **conv_kwargs)(x)
-    
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    x = keras.layers.Conv2D(filters, (3,3), strides = strides, padding = 'same',data_format = 'channels_first', **conv_kwargs)(x)
-    
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    x = keras.layers.Conv2D(filters * 2, (1,1), strides = 1, padding = 'same',data_format = 'channels_first', **conv_kwargs)(x)
+        x= self.upsample6(x)
 
         
-    x = keras.layers.add([x, short_cut])
-    
-    return x
+        #x= self.upsample2(x)
+        #x= self.upsample2(x)
+        #x= self.upsample2(x)
+
+        #x = self.avgpool(x)
+        #x = x.view(x.size(0), -1)
+        #x = self.dropout(x)
+        #x = self.linear(x)
+        x = torch.sigmoid(x)
+        return x
 
 
-def res_block_up_sample(filters, strides, inputs, transpose = False, **conv_kwargs):
-    
-    if transpose:
-        
-        short_cut = keras.layers.UpSampling2D((2,2), interpolation = 'bilinear', data_format = 'channels_first')(inputs)
-        short_cut = keras.layers.Conv2D(filters, (1,1), strides = 1, padding = 'same',data_format = 'channels_first')(short_cut)
-        short_cut = keras.layers.BatchNormalization()(short_cut)
-        
-        x = keras.layers.BatchNormalization()(inputs)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2D(filters, (1,1), strides = 1, padding = 'same',data_format = 'channels_first',  **conv_kwargs)(x)
+    def _make_Block(self, block, repeats, in_channels, out_channels, kernel_size, stride, se_scale):
+        strides = [stride] + [1] * (repeats - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(in_channels, out_channels, kernel_size, stride, se_scale, self.p))
+            in_channels = out_channels
+            self.p -= self.step
 
-        x = keras.layers.BatchNormalization()(x)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2DTranspose(filters, (3,3), strides = strides, padding = 'same',data_format = 'channels_first', output_padding = 1,  **conv_kwargs)(x)
-
-        x = keras.layers.BatchNormalization()(x)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2D(filters, (1,1), strides = 1, padding = 'same',data_format = 'channels_first',  **conv_kwargs)(x)
-    
-    
-    else:
-        
-        short_cut = keras.layers.Conv2D(filters, (1,1), strides=1, padding='same', data_format='channels_first')(inputs)
-               
-        x = keras.layers.BatchNormalization()(inputs)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2D(filters, (1,1), strides = 1, padding = 'same',data_format = 'channels_first', **conv_kwargs)(x)
-
-        x = keras.layers.BatchNormalization()(x)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2D(filters, (3,3), strides = strides, padding = 'same',data_format = 'channels_first', **conv_kwargs)(x)
-
-        x = keras.layers.BatchNormalization()(x)
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.Conv2D(filters, (1, 1), strides=1, padding="same", data_format='channels_first', **conv_kwargs)(x)
+        return nn.Sequential(*layers)
 
 
-    
-    x = keras.layers.add([x, short_cut])
-    
-    return x
-    
+def efficientnet_b0(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.0, depth_coef=1.0, scale=1.0,dropout=0.2, se_scale=4)
 
-def track_net(input_shape):
-    #start_layers
-    inputs = keras.Input(shape = input_shape, name = "input")
-    x = keras.layers.Conv2D(64, (3,3), padding = 'same', data_format = 'channels_first')(inputs)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    
-    x = keras.layers.Conv2D(64, (3,3), padding = 'same', data_format = 'channels_first')(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    
-    #res_block_down_sample_1
-    x = res_block_down_sample(filters = 16, strides = 2, inputs = x)
-    x = res_block_down_sample(filters = 16, strides = 1, inputs = x)
-    x_1 = res_block_down_sample(filters = 16, strides = 1, inputs = x)
-    
-    #res_block_down_sample_2
-    x = res_block_down_sample(filters = 32, strides = 2, inputs = x_1)
-    x = res_block_down_sample(filters = 32, strides = 1, inputs = x)
-    x_2 = res_block_down_sample(filters = 32, strides = 1, inputs = x)
-    
-    #res_block_down_sample_3
-    x = res_block_down_sample(filters = 64, strides = 2, inputs = x_2)
-    x = res_block_down_sample(filters = 64, strides = 1, inputs = x)
-    x = res_block_down_sample(filters = 64, strides = 1, inputs = x)
-    x_3 = res_block_down_sample(filters = 64, strides = 1, inputs = x)
-    
-    #res_block_down_sample_4
-    x = res_block_down_sample(filters = 128, strides = 2, inputs = x_3)
-    x = res_block_down_sample(filters = 128, strides = 1, inputs = x)
-    x = res_block_down_sample(filters = 128, strides = 1, inputs = x)   
-       
-    #res_block_up_sample_1
-    x = res_block_up_sample(filters = 128, strides = 2, inputs = x, transpose = True)
-    x = tf.concat([x,x_3],axis=1)
-    
-    x = res_block_up_sample(filters = 128, strides = 1, inputs = x, transpose = False)
-    x = res_block_up_sample(filters = 128, strides = 1, inputs = x, transpose = False)
-    x = res_block_up_sample(filters = 128, strides = 1, inputs = x, transpose = False)
-    
-    #res_block_up_sample_2
-    x = res_block_up_sample(filters = 64, strides = 2, inputs = x, transpose = True)
-    x = tf.concat([x,x_2],axis=1)
-    
-    x = res_block_up_sample(filters = 64, strides = 1, inputs = x, transpose = False)
-    x = res_block_up_sample(filters = 64, strides = 1, inputs = x, transpose = False)
-    
-    #res_block_up_sample_3
-    x = res_block_up_sample(filters = 32, strides = 2, inputs = x, transpose = True)
-    x = tf.concat([x,x_1],axis=1)
-    
-    x = res_block_up_sample(filters = 32, strides = 1, inputs = x, transpose = False)
-    x = res_block_up_sample(filters = 32, strides = 1, inputs = x, transpose = False)
-    
-    #res_block_up_sample_4
-    x = res_block_up_sample(filters = 16, strides = 2, inputs = x, transpose = True)
-    
-    #end_layers
-    x = keras.layers.Conv2D(64, (3,3), padding = 'same', data_format = 'channels_first')(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    x = keras.layers.Conv2D(64, (3,3), padding = 'same', data_format = 'channels_first')(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    x = keras.layers.Conv2D(256, (3,3), padding = 'same', data_format = 'channels_first', bias_initializer = keras.initializers.constant(-3.2))(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-    outputs = keras.layers.Activation("softmax")(x)
+def efficientnet_b1(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.0, depth_coef=1.1, scale=240/224, dropout=0.2, se_scale=4)
 
-    #outputs = x
+def efficientnet_b2(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.1, depth_coef=1.2, scale=260/224., dropout=0.3, se_scale=4)
+
+def efficientnet_b3(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.2, depth_coef=1.4, scale=300/224, dropout=0.3, se_scale=4)
+    #return EfficientNet(num_classes=num_classes, width_coef=1.2, depth_coef=1.4, scale=2, dropout=0.3, se_scale=4)
+
+def efficientnet_b4(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.4, depth_coef=1.8, scale=380/224, dropout=0.4, se_scale=4)
+
+
+def efficientnet_b5(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.6, depth_coef=2.2, scale=456/224, dropout=0.4, se_scale=4)
+
+def efficientnet_b6(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=1.8, depth_coef=2.6, scale=528/224, dropout=0.5, se_scale=4)
+
+def efficientnet_b7(num_classes=10):
+    return EfficientNet(num_classes=num_classes, width_coef=2.0, depth_coef=3.1, scale=600/224, dropout=0.5, se_scale=4)
+
+
+# check
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print('GPU Use : ',torch.cuda.is_available())
+
+    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    data = torch.randn(1, 9, 288, 512).to(device)
+    model = efficientnet_b3().to(device)
+
+    time_list =[]
+
+    epoch = 50
+
+    summary(model, (9, 288, 512),device='cuda')
     
-    outputs = tf.reduce_max(outputs, axis=1)
-    outputs = tf.expand_dims(outputs, axis=1)
+    with torch.no_grad():
+        for i in range(epoch):
+            torch.cuda.synchronize()
+            t0 = time.time()
+            output = model(data)
+            torch.cuda.synchronize()
+            t1 = time.time()
 
-    return keras.Model(inputs, outputs, name="track_net")
-        
-    
+            #print(i)
 
-if __name__ == "__main__":
-
-    model = track_net(input_shape=(3,288,512))
-    model.summary()
-
-    data = np.random.rand(1,3,288,512)
-
-    time_list = list()
-
-    for i in range(40):
-        t0 = time.time()
-        a = model.predict(data)
-
-        time_list.append(1/(time.time() - t0))
-        
-    print("avg time : ",sum(time_list)/len(time_list))
+            time_list.append(t1-t0)
+            #print('output size:', output.size())
+    print("output_shape : ",output.size())
+    print("avg time : ", np.mean(time_list))
+    print("avg FPS : ", 1 / np.mean(time_list))

@@ -24,12 +24,12 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 def getData(mode):
     if mode == 'train':
-        img = pd.read_csv('tracknet_train_list_x_10.csv')
-        label = pd.read_csv('tracknet_train_list_y_10.csv')
+        img = pd.read_csv('tracknet_train_list_x_3.csv')
+        label = pd.read_csv('tracknet_train_list_y_3.csv')
         return np.squeeze(img.values), np.squeeze(label.values)
     else:
-        img = pd.read_csv('tracknet_test_list_x_10.csv')
-        label = pd.read_csv('tracknet_test_list_y_10.csv')
+        img = pd.read_csv('tracknet_test_list_x_3.csv')
+        label = pd.read_csv('tracknet_test_list_y_3.csv')
         return np.squeeze(img.values), np.squeeze(label.values)
 
 
@@ -52,11 +52,16 @@ class TrackNetLoader(data.Dataset):
         label_path = self.label_name[index]
         img_all = []
         label_all = []
-        for i in range(10):
-            x = Image.open(img_path[i]).convert('L')
+        for i in range(3):
+            x = Image.open(img_path[i]).convert('RGB')
             x = x.resize((WIDTH, HEIGHT))
-            x = np.asarray(x) / 255.0
-            img_all.append(x)
+            
+            x = np.asarray(x).transpose(2, 0, 1) / 255.0
+            #x = x.resize((WIDTH, HEIGHT, 3))
+
+            img_all.append(x[0])
+            img_all.append(x[1])
+            img_all.append(x[2])
 
             y = Image.open(label_path[i])
             y = np.asarray(y) / 255.0
@@ -70,6 +75,32 @@ class TrackNetLoader(data.Dataset):
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         '''
         return img_all, label_all
+
+    """def __getitem__(self, index):
+        img_path = self.img_name[index]
+        label_path = self.label_name[index]
+        img_all = []
+        label_all = []
+        x = Image.open(img_path).convert('RGB')
+        x = x.resize((WIDTH, HEIGHT))
+        
+        x = np.asarray(x).transpose(2, 0, 1) / 255.0
+        #x = x.resize((WIDTH, HEIGHT, 3))
+
+        img_all.append(x[0])
+
+        y = Image.open(label_path)
+        y = np.asarray(y) / 255.0
+        label_all.append(y)
+
+        img_all = np.asarray(img_all)
+        label_all = np.asarray(label_all)
+        '''
+        if self.mode == 'train':
+            if random.random() < 0.5:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        '''
+        return img_all, label_all"""
 
 '''
 img = pd.read_csv('tracknet_train_list_x.csv')

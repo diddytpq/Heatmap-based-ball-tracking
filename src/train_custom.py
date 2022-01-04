@@ -4,11 +4,11 @@ import json
 import torch
 import argparse
 from torch.utils.data import TensorDataset, DataLoader
-from TrackNet3 import TrackNet3
+from network import *
 import torchvision.models as models
-import dataloader3
+import dataloader_custom
 import numpy as np
-from dataloader3 import TrackNetLoader
+from dataloader_custom import TrackNetLoader
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import itertools
@@ -17,16 +17,16 @@ import math
 
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')
-parser.add_argument('--batchsize', type = int, default = 8, help = 'input batch size for training (defalut: 8)')
-parser.add_argument('--epochs', type = int, default = 30, help = 'number of epochs to train (default: 30)')
+parser.add_argument('--batchsize', type = int, default = 1, help = 'input batch size for training (defalut: 8)')
+parser.add_argument('--epochs', type = int, default = 5, help = 'number of epochs to train (default: 30)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = None, help = 'the weight you want to retrain')
-parser.add_argument('--save_weight', type = str, default = 'TrackNet3', help = 'the weight you want to save')
+parser.add_argument('--load_weight', type = str, default = 'weights/custom_15.tar', help = 'the weight you want to retrain')
+parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 args = parser.parse_args()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -39,7 +39,7 @@ def outcome(y_pred, y_true, tol):
 	i = 0
 	TP = TN = FP1 = FP2 = FN = 0
 	while i < n:
-		for j in range(3):
+		for j in range(1):
 			if torch.max(y_pred[i][j]) == 0 and torch.max(y_true[i][j]) == 0:
 				TN += 1
 			elif torch.max(y_pred[i][j]) > 0 and torch.max(y_true[i][j]) == 0:
@@ -51,6 +51,14 @@ def outcome(y_pred, y_true, tol):
 				h_true = (y_true[i][j] * 255).cpu().numpy()
 				h_pred = h_pred.astype('uint8')
 				h_true = h_true.astype('uint8')
+
+
+				debug_img = cv2.hconcat([h_pred, h_true])
+
+				cv2.imshow('debug_img',debug_img)
+
+				cv2.waitKey(1)
+
 				#h_pred
 				(cnts, _) = cv2.findContours(h_pred.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 				rects = [cv2.boundingRect(ctr) for ctr in cnts]
@@ -114,11 +122,12 @@ def train(epoch):
 		optimizer.zero_grad()
 		y_pred = model(data)
 		loss = WBCE(y_pred, label)
-		print('Train Epoch" {} [{}/{} ({:.0f}%)]\tLoss : {:.6f}'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader), loss.data))
+		#print('Train Epoch" {} [{}/{} ({:.0f}%)]\tLoss : {:.8f}'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader), loss.data))
+		print('Train Epoch" {} [{}/{} ({:.0f}%)]'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader))+'\tLoss :',format(float(loss.data.cpu().numpy()),'.1E'))
 		train_loss += loss.data
 		loss.backward()
 		optimizer.step()
-		if(epoch % 3 == 0):
+		if(epoch % 1 == 0):
 			y_pred = y_pred > 0.5
 			(tp, tn, fp1, fp2, fn) = outcome(y_pred, label, args.tol)
 			TP += tp
@@ -126,8 +135,10 @@ def train(epoch):
 			FP1 += fp1
 			FP2 += fp2
 			FN += fn
+
+			#show(train_loss, epoch)
 	train_loss /= len(train_loader)
-	if(epoch % 3 == 0):
+	if(epoch % 1 == 0):
 		display(TP, TN, FP1, FP2, FN)
 		savefilename = args.save_weight + '_{}.tar'.format(epoch)
 		torch.save({'epoch':epoch,'state_dict':model.state_dict(),},savefilename)
@@ -156,11 +167,12 @@ def show(train_loss):
 	plt.figure(figsize=(10, 8))
 	plt.xlabel("Epoch")
 	plt.ylabel("Loss")
-	plt.title('Loss of TrackNet10')
+	plt.title('Loss of TrackNet3')
 	train_loss_plt = plt.plot(epoch_num, train_loss, marker=".")
-	plt.savefig('Loss_of_TrackNet10.jpg')
+	plt.savefig('Loss_of_{}.jpg'.format(epoch))
+	print('train loss : ' , train_loss)
 
-model = TrackNet3()
+model = efficientnet_b3()
 model.to(device)
 if args.optimizer == 'Adadelta':
 	optimizer = torch.optim.Adadelta(model.parameters(), lr=args.lr, rho=0.9, eps=1e-06, weight_decay=0)
