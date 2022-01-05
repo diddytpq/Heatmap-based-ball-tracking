@@ -22,10 +22,10 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 dataset = 'profession_dataset'
 #game_list = ['match22']
-game_list = ['match4','match5','match6','match7']
+game_list = ['match2']
 #'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']#,'match11','match12','match13','match14','match15','match16','match17','match18','match19','match20','match21','match22','match23','match24','match25','match26']
 
-p = os.path.join(dataset, game_list[0], 'frame', '1_03_02', '1.png')
+p = os.path.join(dataset, game_list[0], 'frame', '1_00_02', '1.png')
 a = cv2.imread(p)
 ratio = a.shape[0] / HEIGHT
 

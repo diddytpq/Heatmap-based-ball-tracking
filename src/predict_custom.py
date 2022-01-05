@@ -24,11 +24,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/tennis_FOV_1.mp4', help='input video name for predict')
+                    default='videos/test.mp4', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/custom_15.tar', help='input model weight for predict')
+                    default='weights/custom_5.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -85,6 +85,30 @@ def custom_time(time):
 
     return cts
 
+def tran_input_img(img_list):
+
+    trans_img = []
+
+    for i in range(len(img_list)):
+
+        img = img_list[i]
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        img = cv2.resize(img,(WIDTH, HEIGHT))
+        img = np.asarray(img).transpose(2, 0, 1) / 255.0
+
+
+        trans_img.append(img[0])
+        trans_img.append(img[1])
+        trans_img.append(img[2])
+
+    trans_img = np.asarray(trans_img)
+
+    return trans_img.reshape(1,trans_img.shape[0],trans_img.shape[1],trans_img.shape[2])
+
+
+
 ################# video #################
 
 
@@ -124,50 +148,34 @@ else:
 checkpoint = torch.load(args.load_weight)
 model.load_state_dict(checkpoint['state_dict'])
 epoch = checkpoint['epoch']
-model.eval()
+#model.eval()
 count = 0
 count2 = -3
 time_list = []
 start1 = time.time()
-while True:
-
-    t0 = time.time()
-
+input_img = []
+while cap.isOpened():
     rets = []
     images = []
     frame_times = []
-    for idx in range(3):
-        # Read frame from wabcam
-        ret, frame = cap.read()
-        t = custom_time(cap.get(cv2.CAP_PROP_POS_MSEC))
-        rets.append(ret)
-        images.append(frame)
-        frame_times.append(t)
-        count += 1
-        count2 += 1
+    
+    t0 = time.time()
+    ret, frame = cap.read()
 
-    grays=[]
-    if all(rets):
-        for img in images:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            grays.append(img[:,:,0])
-            grays.append(img[:,:,1])
-            grays.append(img[:,:,2])
-        #grays = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) for img in images]
-    elif count >= count:
-        break
-    else:
-        print("read frame error. skip...")
+
+    input_img.append(frame)
+
+    if len(input_img) < 3:
         continue
 
-    # TackNet prediction
-    unit = np.stack(grays, axis=2)
-    unit = cv2.resize(unit, (WIDTH, HEIGHT))
-    unit = np.moveaxis(unit, -1, 0).astype('float32')/255
-    unit = torch.from_numpy(np.asarray([unit])).to(device)
+    if len(input_img) > 3:
+        input_img = input_img[-3:]
 
+    #unit = unit.reshape(1,9,unit.size()[-2],unit.size()[-1])
+
+    unit = tran_input_img(input_img)
+    unit = torch.from_numpy(unit).to(device, dtype=torch.float)
     
-
     with torch.no_grad():
         t0 = time.time()
 
@@ -180,19 +188,13 @@ while True:
 
         end = time.time()
         time_list.append(end - start)
-
         
+        h_pred = (h_pred * 255).cpu().numpy()
+        
+        torch.cuda.synchronize()
+        h_pred = (h_pred[0]).astype('uint8')
+        #h_pred = (200 < h_pred) * h_pred
 
-    h_pred = h_pred > 0.5
-
-    
-
-    h_pred = h_pred.detach().cpu().numpy()
-    torch.cuda.synchronize()
-    h_pred = h_pred.astype('uint8')
-    #h_pred = h_pred.to(torch.float64)
-
-    h_pred = h_pred[0]*255
 
     """for idx_f, (image, frame_time) in enumerate(zip(images, frame_times)):
         #show = np.copy(image)
@@ -217,34 +219,32 @@ while True:
             target = rects[max_area_idx]
             (cx_pred, cy_pred) = (int(ratio_w*(target[0] + target[2] / 2)), int(ratio_h*(target[1] + target[3] / 2)))
             
-            cv2.circle(image, (cx_pred, cy_pred), 5, (0,0,255), -1)
+            cv2.circle(frame, (cx_pred, cy_pred), 5, (0,0,255), -1)
             print((cx_pred, cy_pred))
             
             #f.write(str(count2 + (idx_f))+',1,'+str(cx_pred)+','+str(cy_pred)+','+frame_time+'\n')
-            """
-            #out.write(image)
-
-        
-
-    heapmap = h_pred.astype('uint8')
-    heapmap = np.reshape(heapmap,(HEIGHT,WIDTH,1))
-
-    print(heapmap.shape)
-
-    heapmap = cv2.cvtColor(heapmap, cv2.COLOR_GRAY2BGR)
-    heapmap = cv2.resize(heapmap, dsize=(0, 0), fx=3, fy=3, interpolation=cv2.INTER_LINEAR)
-
-    cv2.imshow("image",img)
-    cv2.imshow("h_pred",heapmap)
+            
+            #out.write(image)"""
 
 
-    #print(1/(t1 - t0))
+    #heapmap = np.reshape(h_pred,(HEIGHT,WIDTH,1))
+
+    #print(heapmap.shape)
+
+    #heapmap = cv2.cvtColor(heapmap, cv2.COLOR_GRAY2BGR)
+    #heapmap = cv2.resize(heapmap, dsize=(1280, 720), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
+    #print(h_pred.shape)
+    cv2.imshow("image",frame)
+    cv2.imshow("h_pred",h_pred[0])
+
+
+    print("FPS : ",1/(t1 - t0))
     print((t1 - t0))
 
     #print(1/(end - start))
 
 
-    key = cv2.waitKey(0)
+    key = cv2.waitKey(1)
 
     if key == 27: break
 
