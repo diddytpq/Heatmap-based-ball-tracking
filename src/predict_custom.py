@@ -28,7 +28,7 @@ parser.add_argument('--video_name', type=str,
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/custom_5.tar', help='input model weight for predict')
+                    default='weights/custom_10.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -98,7 +98,6 @@ def tran_input_img(img_list):
         img = cv2.resize(img,(WIDTH, HEIGHT))
         img = np.asarray(img).transpose(2, 0, 1) / 255.0
 
-
         trans_img.append(img[0])
         trans_img.append(img[1])
         trans_img.append(img[2])
@@ -128,7 +127,7 @@ size = (width, height)
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 output_video_path = args.video_name[:-4]+'_predict.mp4'
-out = cv2.VideoWriter(output_video_path, fourcc, fps, size)
+#out = cv2.VideoWriter(output_video_path, fourcc, fps, size)
 
 #########################################
 
@@ -154,16 +153,19 @@ count2 = -3
 time_list = []
 start1 = time.time()
 input_img = []
+
 while cap.isOpened():
+
     rets = []
     images = []
     frame_times = []
     
-    t0 = time.time()
     ret, frame = cap.read()
 
+    img = cv2.resize(img,(WIDTH, HEIGHT))
 
-    input_img.append(frame)
+
+    input_img.append(img)
 
     if len(input_img) < 3:
         continue
@@ -172,59 +174,55 @@ while cap.isOpened():
         input_img = input_img[-3:]
 
     #unit = unit.reshape(1,9,unit.size()[-2],unit.size()[-1])
+    t0 = time.time()
 
     unit = tran_input_img(input_img)
+
     unit = torch.from_numpy(unit).to(device, dtype=torch.float)
+    torch.cuda.synchronize()
     
     with torch.no_grad():
-        t0 = time.time()
 
-        torch.cuda.synchronize()
-        start = time.time()
         h_pred = model(unit)
         torch.cuda.synchronize()
 
-        t1 = time.time()
-
-        end = time.time()
-        time_list.append(end - start)
         
         h_pred = (h_pred * 255).cpu().numpy()
         
         torch.cuda.synchronize()
         h_pred = (h_pred[0]).astype('uint8')
-        #h_pred = (200 < h_pred) * h_pred
+        h_pred = np.asarray(h_pred).transpose(1, 2, 0)
+        #print(h_pred.shape)
+
+        h_pred = (100 < h_pred) * h_pred
 
 
-    """for idx_f, (image, frame_time) in enumerate(zip(images, frame_times)):
-        #show = np.copy(image)
-        show = cv2.resize(image, (frame.shape[1], frame.shape[0]))
-        # Ball tracking
+    # Ball tracking
+    
+    """if np.amax(h_pred) <= 0:  # no ball
+    #if torch.amax(h_pred[idx_f]) <= 0:  # no ball
+        #f.write(str(count2 + (idx_f))+',0,0,0,'+frame_time+'\n')
+        #out.write(frame)
+        pass
+    else:
+        (cnts, _) = cv2.findContours(h_pred, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        rects = [cv2.boundingRect(ctr) for ctr in cnts]
+        max_area_idx = 0
+        max_area = rects[max_area_idx][2] * rects[max_area_idx][3]
+        for i in range(len(rects)):
+            area = rects[i][2] * rects[i][3]
+            if area > max_area:
+                max_area_idx = i
+                max_area = area
+        target = rects[max_area_idx]
+        (cx_pred, cy_pred) = (int(ratio_w*(target[0] + target[2] / 2)), int(ratio_h*(target[1] + target[3] / 2)))
         
-        if np.amax(h_pred[idx_f]) <= 0:  # no ball
-        #if torch.amax(h_pred[idx_f]) <= 0:  # no ball
-            #f.write(str(count2 + (idx_f))+',0,0,0,'+frame_time+'\n')
-            #out.write(image)
-            pass
-        else:
-            (cnts, _) = cv2.findContours(h_pred[idx_f], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            rects = [cv2.boundingRect(ctr) for ctr in cnts]
-            max_area_idx = 0
-            max_area = rects[max_area_idx][2] * rects[max_area_idx][3]
-            for i in range(len(rects)):
-                area = rects[i][2] * rects[i][3]
-                if area > max_area:
-                    max_area_idx = i
-                    max_area = area
-            target = rects[max_area_idx]
-            (cx_pred, cy_pred) = (int(ratio_w*(target[0] + target[2] / 2)), int(ratio_h*(target[1] + target[3] / 2)))
-            
-            cv2.circle(frame, (cx_pred, cy_pred), 5, (0,0,255), -1)
-            print((cx_pred, cy_pred))
-            
-            #f.write(str(count2 + (idx_f))+',1,'+str(cx_pred)+','+str(cy_pred)+','+frame_time+'\n')
-            
-            #out.write(image)"""
+        cv2.circle(frame, (cx_pred, cy_pred), 5, (0,0,255), -1)
+        #print((cx_pred, cy_pred))
+        
+        #f.write(str(count2 + (idx_f))+',1,'+str(cx_pred)+','+str(cy_pred)+','+frame_time+'\n')
+        
+        #out.write(frame)"""
 
 
     #heapmap = np.reshape(h_pred,(HEIGHT,WIDTH,1))
@@ -232,10 +230,16 @@ while cap.isOpened():
     #print(heapmap.shape)
 
     #heapmap = cv2.cvtColor(heapmap, cv2.COLOR_GRAY2BGR)
-    #heapmap = cv2.resize(heapmap, dsize=(1280, 720), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
+    frame = cv2.resize(frame, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
+    h_pred = cv2.resize(h_pred, dsize=(1280, 720), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
+    h_pred = cv2.resize(h_pred, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
+
     #print(h_pred.shape)
+
     cv2.imshow("image",frame)
-    cv2.imshow("h_pred",h_pred[0])
+    cv2.imshow("h_pred",h_pred)
+
+    t1 = time.time()
 
 
     print("FPS : ",1/(t1 - t0))

@@ -4,28 +4,39 @@ import os
 import sys
 import shutil
 from glob import glob
+import argparse
 
-game_list = ['match1','match2','match3','match4','match5','match6','match7','match8','match9','match10','match11','match12','match13','match14','match15','match16','match17','match18','match19','match20','match21','match22','match23','match24','match25','match26']
-for game in game_list:
+
+parser = argparse.ArgumentParser(description = 'video_trans_img')
+parser.add_argument('--dataset', type = str, default='tennis_FOV_dataset', help = 'input your custom dataset folder path')
+
+args = parser.parse_args()
+
+data_folder_list = os.listdir("./" + args.dataset)
+#print(data_folder_list)
+
+for folder_name in data_folder_list:
 	#p = os.path.join('dataset', 'tennis_FOV' ,game, '*mp4')
-	p = os.path.join('profession_dataset',game, 'rally_video', '*mp4')
+	p = os.path.join(args.dataset, folder_name, 'rally_video', '*mp4')
 
 	video_list = glob(p)
-	os.makedirs(game + '/frame/')
+	#os.makedirs(folder_name + '/frame/')
 	for videoName in video_list:
-		#rallyName = videoName[len(os.path.join('dataset',game, 'tennis_FOV'))+1:-4]
-		rallyName = videoName[len(os.path.join(game, 'rally_video'))+1:-4]
-		#outputPath = os.path.join('dataset',game, 'frame', rallyName)
-		outputPath = os.path.join(game, 'frame', rallyName)
+
+		path_list = videoName[:-4].split('/')
+		#rallyName = videoName[len(os.path.join(folder_name, 'rally_video'))+1:-4]
+		output = os.path.join('.',path_list[0] , path_list[1],'frame', path_list[3])
 		
-		outputPath += '/'
-		os.makedirs(outputPath)
+		#outputPath = os.path.join('dataset',game, 'frame', rallyName)
+		#outputPath = os.path.join(args.dataset,folder_name, 'frame', output)
+		
+		output += '/'
+		os.makedirs(output)
 		cap = cv2.VideoCapture(videoName)
 		success, count = True, 0
 		success, image = cap.read()
 		while success:
-			cv2.imwrite(outputPath + '%d.png' %(count), image)
+			cv2.imwrite(output + '%d.png' %(count), image)
 			count += 1
 			success, image = cap.read()
 			print(videoName,count)
-

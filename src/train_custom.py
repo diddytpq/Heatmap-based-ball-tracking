@@ -18,14 +18,14 @@ import math
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')
 parser.add_argument('--batchsize', type = int, default = 1, help = 'input batch size for training (defalut: 8)')
-parser.add_argument('--epochs', type = int, default = 5, help = 'number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type = int, default = 10, help = 'number of epochs to train (default: 30)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/custom_5.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/custom_10.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 
@@ -49,8 +49,8 @@ def outcome(y_pred, y_true, tol):
 				h_pred = h_pred.astype('uint8')
 				h_true = h_true.astype('uint8')
 
-				print(h_pred.shape)
-				print(h_true.shape)
+				#print(h_pred.shape)
+				#print(h_true.shape)
 
 
 				debug_img = cv2.hconcat([h_pred, h_true])
@@ -187,7 +187,7 @@ def show(train_loss):
 	plt.ylabel("Loss")
 	plt.title('Loss of TrackNet3')
 	train_loss_plt = plt.plot(epoch_num, train_loss, marker=".")
-	plt.savefig('Loss_of_{}.jpg'.format(epoch))
+	plt.savefig('Loss_of_{}.jpg'.format(args.epochs))
 	print('train loss : ' , train_loss)
 
 model = efficientnet_b3()

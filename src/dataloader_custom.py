@@ -52,6 +52,8 @@ class TrackNetLoader(data.Dataset):
     def __getitem__(self, index):
         img_path = self.img_name[index]
         label_path = self.label_name[index]
+        print(img_path)
+        print(label_path)
         img_all = []
         label_all = []
         for i in range(3):
@@ -64,8 +66,8 @@ class TrackNetLoader(data.Dataset):
             img_all.append(x[0])
             img_all.append(x[1])
             img_all.append(x[2])
-            print(x[0].shape)
-        y = Image.open(label_path[-1])
+            #print(x[0].shape)
+        y = Image.open(label_path)
 
         y = np.asarray(y) / 255.0
         label_all.append(y)
@@ -84,7 +86,7 @@ if __name__ == '__main__' :
     batchsize = 1
 
     train_data = TrackNetLoader('' , 'train')
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle=False)
+    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
@@ -97,7 +99,7 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/custom_5.tar')
+    checkpoint = torch.load('weights/custom_10.tar')
     model.load_state_dict(checkpoint['state_dict'])
 
 
@@ -173,7 +175,7 @@ if __name__ == '__main__' :
 
 
 
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(0)
 
         if key == 27 : 
             cv2.destroyAllWindows()
