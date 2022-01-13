@@ -5,13 +5,13 @@ import os
 import pickle
 import pandas as pd
 import argparse
-
+import time
 
 parser = argparse.ArgumentParser(description='label_tool')
 
 
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_dataset/match_1/rally_video/5.mp4', help='input video name for label')
+                    default='tennis_FOV_dataset/match_5/rally_video/4.mp4', help='input video name for label')
 
 args = parser.parse_args()
 
@@ -21,7 +21,7 @@ filename = args.video_name.split(os.sep)[-1].split('.')[0]
 data=dict()
 racket = dict()
 drawing = False
-
+press_time = 0
 old_x = -1
 old_y = -1
 
@@ -30,23 +30,34 @@ def click_and_crop(event, x, y, flags, param):
 	# grab references to the global variables
 	global data,cap,current
 	global drawing, old_x, old_y
-	global image
+	global image, press_time
 
 	if event == cv2.EVENT_MBUTTONDOWN and drawing == False:
 		old_x, old_y = x, y
 		drawing = True
+		press_time = time.time()
 		#image=toframe(cap,current,total_frame)
 		
 	elif event == cv2.EVENT_MOUSEMOVE and drawing:
+	
+	#elif  drawing:
+			
 			r = int(np.sqrt((old_x - x) ** 2 + (old_y - y) ** 2) )
+			#r = int(np.exp(time.time() -  press_time) * 4 )
+			
 			#cv2.circle(image, old_x, old_y, r, (0,0,255),thickness=-1)
 			print(old_x, old_y, r)
 			image=toframe(cap,current,total_frame, old_x, old_y, r)
 
 
+
 	if event == cv2.EVENT_MBUTTONUP:
 		drawing = False
+
 		r = int(np.sqrt((old_x - x) ** 2 + (old_y - y) ** 2) )
+		#r = int(np.exp(time.time() -  press_time) * 4 )
+
+
 		if  r < 3:
 			r = 3
 		#cv2.circle(param, old_x, old_y, r, (0,0,255),thickness=-1)
@@ -81,7 +92,7 @@ try :
 	for i in range(len(csv_x)):
 		data[i] = (csv_x[i],csv_y[i],csv_r[i])
 except Exception as e:
-	print ('\nThis video has not been predicted! Good Luck!!')
+	print ('\nThis video has not been predicted!')
 
 
 total_frame=0

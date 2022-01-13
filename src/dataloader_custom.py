@@ -8,11 +8,15 @@ from PIL import Image
 import random
 import cv2
 from network import *
+import math
 
 HEIGHT=288
 WIDTH=512
 mag = 1
 sigma = 2.5
+
+TP = TN = FP1 = FP2 = FN = 0
+
 
 def genHeatMap(w, h, cx, cy, r, mag):
     if cx < 0 or cy < 0:
@@ -26,12 +30,12 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 def getData(mode):
     if mode == 'train':
-        img = pd.read_csv('tracknet_train_list_x_3.csv')
-        label = pd.read_csv('tracknet_train_list_y_3.csv')
+        img = pd.read_csv('tracknet_train_list_x.csv')
+        label = pd.read_csv('tracknet_train_list_y.csv')
         return np.squeeze(img.values), np.squeeze(label.values)
-    else:
-        img = pd.read_csv('tracknet_test_list_x_3.csv')
-        label = pd.read_csv('tracknet_test_list_y_3.csv')
+    if mode == 'test':
+        img = pd.read_csv('test_input.csv')
+        label = pd.read_csv('test_label.csv')
         return np.squeeze(img.values), np.squeeze(label.values)
 
 
@@ -82,10 +86,95 @@ class TrackNetLoader(data.Dataset):
         return img_all, label_all
 
 
+def outcome(y_pred, y_true, tol):
+    n = y_pred.shape[0]
+    i = 0
+    tp = tn = fp1 = fp2 = fn = 0
+
+    while i < n:
+        if np.max(y_pred[i]) == 0 and np.max(y_true[i]) == 0:
+            tn += 1
+        elif np.max(y_pred[i]) > 0 and np.max(y_true[i]) == 0:
+            fp2 += 1
+        elif np.max(y_pred[i]) == 0 and np.max(y_true[i]) > 0:
+            fn += 1
+        elif np.max(y_pred[i]) > 0 and np.max(y_true[i]) > 0:
+            #h_pred
+            nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(y_pred[i].copy(), connectivity = 8)
+            if len(stats): 
+                stats = np.delete(stats, 0, axis = 0)
+                centroids = np.delete(centroids, 0, axis = 0)
+
+            (cx_pred, cy_pred) = centroids[np.argmax(stats[:,-1])]
+
+            #h_true
+            (cnts, _) = cv2.findContours(y_true[i].copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            rects = [cv2.boundingRect(ctr) for ctr in cnts]
+            max_area_idx = 0
+            max_area = rects[max_area_idx][2] * rects[max_area_idx][3]
+            for j in range(len(rects)):
+                area = rects[j][2] * rects[j][3]
+                if area > max_area:
+                    max_area_idx = j
+                    max_area = area
+            target = rects[max_area_idx]
+            (cx_true, cy_true) = (int(target[0] + target[2] / 2), int(target[1] + target[3] / 2))
+            dist = math.sqrt(pow(cx_pred-cx_true, 2)+pow(cy_pred-cy_true, 2))
+
+            if dist > tol:
+                fp1 += 1
+            else:
+                tp += 1
+        i += 1
+    return (tp, tn, fp1, fp2, fn)
+
+
+def evaluation(TP, TN, FP1, FP2, FN):
+    try:
+        accuracy = (TP + TN) / (TP + TN + FP1 + FP2 + FN)
+    except:
+        accuracy = 0
+    try:
+        precision = TP / (TP + FP1 + FP2)
+    except:
+        precision = 0
+    try:
+        recall = TP / (TP + FN)
+    except:
+        recall = 0
+    
+    try:
+        accuracy_2 = (TP + TN) / (TP + TN + FP1 +  FN)
+    except:
+        accuracy_2 = 0
+
+        
+    try:
+        f1_score = 2 * (precision * recall)/(precision + recall)
+    except:
+        f1_score = 0
+
+    return (accuracy, precision, recall, accuracy_2, f1_score)
+
+def display(TP, TN, FP1, FP2, FN):
+    print('======================Evaluate=======================')
+    print("Number of true positive:", TP)
+    print("Number of true negative:", TN)
+    print("Number of false positive FP1:", FP1)
+    print("Number of false positive FP2:", FP2)
+    print("Number of false negative:", FN)
+    (accuracy, precision, recall, accuracy_2, f1_score)= evaluation(TP, TN, FP1, FP2, FN)
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
+    print("Recall:", recall)
+    print("accuracy_2:", accuracy_2)
+    print("F1 score:", f1_score)
+    print('=====================================================')
+
 if __name__ == '__main__' :
     batchsize = 1
 
-    train_data = TrackNetLoader('' , 'train')
+    train_data = TrackNetLoader('' , 'test')
     train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -99,31 +188,11 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/custom_10.tar')
+    checkpoint = torch.load('weights/custom_9.tar')
     model.load_state_dict(checkpoint['state_dict'])
-
-
-    """for batch_idx, (data, label) in enumerate(train_loader):
-        data = data.type(torch.FloatTensor).to(device)
-        label = label.type(torch.FloatTensor).to(device)
-        y_pred = model(data)
-        #print('Train Epoch" {} [{}/{} ({:.0f}%)]\tLoss : {:.8f}'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader), loss.data))
-        
-
-        print(y_pred.size())
-        print(label.size())
-
-        y_pred = (y_pred * 255).cpu().numpy()
-        y_true = (label * 255).cpu().numpy()
-        h_pred = y_pred.astype('uint8')
-        h_true = h_true.astype('uint8')
-    """
 
     for batch_idx, (data, label) in enumerate(train_loader):
 
-        #print(np.array(data[0]).shape)
-        #print(np.array(label[0]).shape)
-        #print(type(data))
 
         img_0, img_1, img_2 = np.array(data[0,0:3,:,:]), np.array(data[0,3:6,:,:]), np.array(data[0,6:,:,:])
 
@@ -132,50 +201,41 @@ if __name__ == '__main__' :
         img_2 = (img_2.transpose(1, 2, 0) * 255).astype('uint8')
 
 
-        #img_0 = cv2.cvtColor(img_0, cv2.COLOR_RGB2BGR)
-        #img_1 = cv2.cvtColor(img_1, cv2.COLOR_RGB2BGR)
-        #img_2 = cv2.cvtColor(img_2, cv2.COLOR_RGB2BGR)
-
-        
-        
         data = data.type(torch.FloatTensor).to(device)
-        #print(type(data))
-        print(data.size())
-        #label = label.type(torch.FloatTensor).to(device)
         with torch.no_grad():
             torch.cuda.synchronize()
 
             y_pred = model(data)
 
-            
-            #print(np.array(img_0).shape)
-            #print(np.array(img_1).shape)
-            #print(np.array(img_2).shape)
             y_true = np.array(label[0])
-            #y_true = y_true.transpose(1, 2, 0)
 
             y_pred = (y_pred * 255).cpu().numpy()
             y_pred = y_pred[0].astype('uint8')
+            y_pred = (50 < y_pred) * y_pred
+                
             torch.cuda.synchronize()
 
             y_true = (y_true * 255).astype('uint8')
 
-            #y_pred = y_pred[0].transpose(1, 2, 0)
 
-        #print(y_pred[0].shape)
-        #print(y_true[0].shape)
+        (tp, tn, fp1, fp2, fn) = outcome(y_pred, y_true, 25)
+        TP += tp
+        TN += tn
+        FP1 += fp1
+        FP2 += fp2
+        FN += fn
 
         debug_img = cv2.hconcat([y_pred[0], y_true[0]])
         input_img = cv2.hconcat([img_0, img_1,img_2])
 
-
-        
         cv2.imshow("input_img",input_img)
         cv2.imshow("debug_img",debug_img)
 
 
 
-        key = cv2.waitKey(0)
+        key = cv2.waitKey(1)
+
+        display(TP, TN, FP1, FP2, FN)
 
         if key == 27 : 
             cv2.destroyAllWindows()

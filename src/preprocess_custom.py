@@ -22,11 +22,14 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 dataset = 'tennis_FOV_dataset'
 game_list = os.listdir("./" + dataset)
-game_list = ['match_1']
+#game_list = ['match_1','match_2','match_3','match_4','match_5']
+game_list = ['match_6']
+
 
 #'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']#,'match11','match12','match13','match14','match15','match16','match17','match18','match19','match20','match21','match22','match23','match24','match25','match26']
 
-p = os.path.join(dataset, game_list[0], 'frame', '1', '1.png')
+p = os.path.join('./',dataset, game_list[0], 'frame', '1', '1.png')
+print(p)
 a = cv2.imread(p)
 ratio = a.shape[0] / HEIGHT
 
@@ -91,13 +94,17 @@ for game in game_list:
 
 
 
-outputfile_name = 'tracknet_train_list_x_3.csv'
-with open(outputfile_name,'w') as outputfile:
+# input_outputfile_name = 'tracknet_train_list_x_3.csv'
+# label_outputfile_name = 'tracknet_train_list_y_3.csv'
+
+input_outputfile_name = 'test_input.csv'
+label_outputfile_name = 'test_label.csv'
+
+with open(input_outputfile_name,'w') as outputfile:
     for i in range(len(train_x)):
         outputfile.write("%s,%s,%s\n"%(train_x[i][0], train_x[i][1], train_x[i][2]))
 
-outputfile_name = 'tracknet_train_list_y_3.csv'
-with open(outputfile_name,'w') as outputfile:
+with open(label_outputfile_name,'w') as outputfile:
     for i in range(len(train_x)):
         outputfile.write("%s\n"%(train_y[i][0]))
 
