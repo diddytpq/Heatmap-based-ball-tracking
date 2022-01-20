@@ -22,8 +22,8 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 dataset = 'tennis_FOV_dataset'
 game_list = os.listdir("./" + dataset)
-#game_list = ['match_1','match_2','match_3','match_4','match_5']
-game_list = ['match_6']
+game_list = ['match_1','match_2','match_3','match_4','match_5']
+#game_list = ['gazebo_match']
 
 
 #'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']#,'match11','match12','match13','match14','match15','match16','match17','match18','match19','match20','match21','match22','match23','match24','match25','match26']
@@ -31,7 +31,9 @@ game_list = ['match_6']
 p = os.path.join('./',dataset, game_list[0], 'frame', '1', '1.png')
 print(p)
 a = cv2.imread(p)
-ratio = a.shape[0] / HEIGHT
+h_ratio = a.shape[0] / HEIGHT
+w_ratio = a.shape[1] / WIDTH
+
 
 
 train_x = []
@@ -59,31 +61,32 @@ for game in game_list:
         r2 = os.path.join(dataset, game, 'heatmap', p)
         x_data_tmp = []
         y_data_tmp = []
-        print(r) 
+        print(num) 
         for i in range(num-2):
             unit = []
             for j in range(3):
                 target=str(no[i+j])+'.png'
                 png_path = os.path.join(r, target)
                 unit.append(png_path)
-            #print("-------------")
-            #print(unit)
+            print("-------------")
+            print(unit)
 
             train_x.append(unit)
             unit = []
             
             target=str(no[i + 2])+'.png'
             heatmap_path = os.path.join(r2, target)
-            if v[i] == 0:
+            if v[i + 2] == 0:
                 heatmap_img = genHeatMap(WIDTH, HEIGHT, -1, -1, sigma, mag)
             else:
-                round = (((radius[i]) ** 2) * np.pi) / ratio
-                heatmap_img = genHeatMap(WIDTH, HEIGHT, int(x[i]/ratio), int(y[i]/ratio), int(np.round(np.sqrt(round/np.pi))), mag)
+                round = (((radius[i + 2]) ** 2) * np.pi) / w_ratio
+                heatmap_img = genHeatMap(WIDTH, HEIGHT, int(x[i+2]/w_ratio), int(y[i+2]/h_ratio), int(np.round(np.sqrt(round/np.pi))), mag)
             heatmap_img *= 255
             unit.append(heatmap_path)
 
 
             #test = heatmap_img.copy()
+            #print(test.shape)
             #test = cv2.resize(test, dsize=(0, 0), fx = ratio, fy = ratio, interpolation=cv2.INTER_LINEAR)
             #cv2.imshow("test",test)
             #cv2.waitKey(0)
@@ -94,11 +97,14 @@ for game in game_list:
 
 
 
-# input_outputfile_name = 'tracknet_train_list_x_3.csv'
-# label_outputfile_name = 'tracknet_train_list_y_3.csv'
+input_outputfile_name = 'data_path_csv/tracknet_train_list_x.csv'
+label_outputfile_name = 'data_path_csv/tracknet_train_list_y.csv'
 
-input_outputfile_name = 'test_input.csv'
-label_outputfile_name = 'test_label.csv'
+#input_outputfile_name = 'data_path_csv/gazebo_train_list_x.csv'
+#label_outputfile_name = 'data_path_csv/gazebo_train_list_y.csv'
+
+#input_outputfile_name = 'data_path_csv/test_input.csv'
+#label_outputfile_name = 'data_path_csv/test_label.csv'
 
 with open(input_outputfile_name,'w') as outputfile:
     for i in range(len(train_x)):

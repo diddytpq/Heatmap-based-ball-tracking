@@ -12,8 +12,10 @@ parser.add_argument('--dataset', type = str, default='tennis_FOV_dataset', help 
 
 args = parser.parse_args()
 
-data_folder_list = os.listdir("./" + args.dataset)
-#print(data_folder_list)
+#data_folder_list = os.listdir("./" + args.dataset)
+data_folder_list = ['gazebo_match']
+
+print(data_folder_list)
 
 for folder_name in data_folder_list:
 	#p = os.path.join('dataset', 'tennis_FOV' ,game, '*mp4')

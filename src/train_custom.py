@@ -18,22 +18,26 @@ import math
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')
 parser.add_argument('--batchsize', type = int, default = 1, help = 'input batch size for training (defalut: 8)')
-parser.add_argument('--epochs', type = int, default = 30, help = 'number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type = int, default = 20, help = 'number of epochs to train (default: 30)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/pretrain_220111.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/custom_5.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
+parser.add_argument('--freeze', type = bool, default = False, help = 'this option make freeze layer without last layer')
+parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/tracknet_train_list_x.csv', help = 'this option make freeze layer without last layer')
+parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/tracknet_train_list_y.csv', help = 'this option make freeze layer without last layer')
+parser.add_argument('--augmentation', type = bool, default = False, help = 'this option make data augmentation')
 
 args = parser.parse_args()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('GPU Use : ',torch.cuda.is_available())
-train_data = TrackNetLoader('' , 'train')
+train_data = TrackNetLoader(args.data_path_x, args.data_path_y, augmentation = args.augmentation)
 train_loader = DataLoader(dataset = train_data, batch_size=args.batchsize, shuffle=True)
 
 def outcome(y_pred, y_true, tol):
@@ -131,6 +135,20 @@ def train(epoch):
 	TP = TN = FP1 = FP2 = FN = 0
 	for batch_idx, (data, label) in enumerate(train_loader):
 		t0 = time.time()
+
+		if args.debug:
+			x_0 = data[0][:3]
+			x_1 = data[0][3:6]
+			x_2 = data[0][6:]
+
+			x_0 = np.asarray(x_0).transpose(1, 2, 0)
+			x_1 = np.asarray(x_1).transpose(1, 2, 0)
+			x_2 = np.asarray(x_2).transpose(1, 2, 0)
+
+			input_img = cv2.hconcat([x_0, x_1, x_2])
+
+			cv2.imshow('input_img', input_img)
+
 		data = data.type(torch.FloatTensor).to(device)
 		label = label.type(torch.FloatTensor).to(device)
 		optimizer.zero_grad()
@@ -186,9 +204,24 @@ def show(train_loss):
 	plt.xlabel("Epoch")
 	plt.ylabel("Loss")
 	plt.title('Loss of TrackNet3')
+
+
+	train_loss = train_loss
+
 	train_loss_plt = plt.plot(epoch_num, train_loss, marker=".")
 	plt.savefig('Loss_of_{}.jpg'.format(args.epochs))
+
 	print('train loss : ' , train_loss)
+
+def dfs_freeze(model):
+	for name, child in model.named_children():
+		#print(name)
+		if name not in ['upsample','upsample2','upsample3','upsample4','upsample5','upsample6']:
+			for param in child.parameters():
+				param.requires_grad = False
+			dfs_freeze(child)
+
+	return model
 
 model = efficientnet_b3()
 model.to(device)
@@ -204,10 +237,15 @@ if(args.load_weight):
 	model.load_state_dict(checkpoint['state_dict'])
 	epoch = checkpoint['epoch']
 
+
+if args.freeze:
+	model = dfs_freeze(model)
+
+
 train_loss = []
 
 for epoch in range(1, args.epochs + 1):
 	loss = train(epoch)
-	train_loss.append(loss)
+	train_loss.append(loss.cpu().numpy())
 
 show(train_loss)

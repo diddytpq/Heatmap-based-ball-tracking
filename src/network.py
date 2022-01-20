@@ -167,6 +167,38 @@ class EfficientNet(nn.Module):
 
 
         # efficient net
+        
+
+        self.stage1 = nn.Sequential(
+            nn.Conv2d(9, channels[0],3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(channels[0], momentum=0.99, eps=1e-3)
+        )
+
+        self.stage2 = self._make_Block(SepConv, repeats[0], channels[0], channels[1], kernel_size[0], strides[0], se_scale)
+
+        self.stage3 = self._make_Block(MBConv, repeats[1], channels[1], channels[2], kernel_size[1], strides[1], se_scale)
+
+        self.stage4 = self._make_Block(MBConv, repeats[2], channels[2], channels[3], kernel_size[2], strides[2], se_scale)
+
+        self.stage5 = self._make_Block(MBConv, repeats[3], channels[3], channels[4], kernel_size[3], strides[3], se_scale)
+
+        self.stage6 = self._make_Block(MBConv, repeats[4], channels[4], channels[5], kernel_size[4], strides[4], se_scale)
+
+        self.stage7 = self._make_Block(MBConv, repeats[5], channels[5], channels[6], kernel_size[5], strides[5], se_scale)
+
+        self.stage8 = self._make_Block(MBConv, repeats[6], channels[6], channels[7], kernel_size[6], strides[6], se_scale)
+
+        self.stage9 = nn.Sequential(
+            nn.Conv2d(channels[7], channels[8], 1, stride=1, bias=False),
+            nn.BatchNorm2d(channels[8], momentum=0.99, eps=1e-3),
+            Swish()
+        ) 
+
+
+        self.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        self.dropout = nn.Dropout(p=dropout)
+        self.linear = nn.Linear(channels[8], num_classes)
+        
         self.upsample = nn.Upsample(scale_factor=float(scale), mode='bilinear', align_corners=False)
 
         self.upsample2 = nn.Sequential(
@@ -247,37 +279,6 @@ class EfficientNet(nn.Module):
                             nn.Conv2d(64, 3, 1, stride=1, bias=False),
                             nn.Conv2d(3, 1, 1, stride=1, bias=False)
                             ) 
-
-        self.stage1 = nn.Sequential(
-            nn.Conv2d(9, channels[0],3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(channels[0], momentum=0.99, eps=1e-3)
-        )
-
-        self.stage2 = self._make_Block(SepConv, repeats[0], channels[0], channels[1], kernel_size[0], strides[0], se_scale)
-
-        self.stage3 = self._make_Block(MBConv, repeats[1], channels[1], channels[2], kernel_size[1], strides[1], se_scale)
-
-        self.stage4 = self._make_Block(MBConv, repeats[2], channels[2], channels[3], kernel_size[2], strides[2], se_scale)
-
-        self.stage5 = self._make_Block(MBConv, repeats[3], channels[3], channels[4], kernel_size[3], strides[3], se_scale)
-
-        self.stage6 = self._make_Block(MBConv, repeats[4], channels[4], channels[5], kernel_size[4], strides[4], se_scale)
-
-        self.stage7 = self._make_Block(MBConv, repeats[5], channels[5], channels[6], kernel_size[5], strides[5], se_scale)
-
-        self.stage8 = self._make_Block(MBConv, repeats[6], channels[6], channels[7], kernel_size[6], strides[6], se_scale)
-
-        self.stage9 = nn.Sequential(
-            nn.Conv2d(channels[7], channels[8], 1, stride=1, bias=False),
-            nn.BatchNorm2d(channels[8], momentum=0.99, eps=1e-3),
-            Swish()
-        ) 
-
-
-        self.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        self.dropout = nn.Dropout(p=dropout)
-        self.linear = nn.Linear(channels[8], num_classes)
-
     def forward(self, x):
         #x = self.upsample(x)
         x_1 = self.stage1(x)
