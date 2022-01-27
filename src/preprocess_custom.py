@@ -20,13 +20,13 @@ def genHeatMap(w, h, cx, cy, r, mag):
     heatmap[heatmap > r**2] = 0
     return heatmap*mag
 
-dataset = 'tennis_FOV_dataset'
+dataset = 'tennis_FOV_2_dataset'
 game_list = os.listdir("./" + dataset)
-game_list = ['match_1','match_2','match_3','match_4','match_5']
-#game_list = ['gazebo_match']
+#game_list = ['match_1','match_2','match_3','match_4','match_5']
+game_list = ['test']
+#game_list = ['match_1','match_2','match_3', 'FOV_1_match_1', 'FOV_1_match_2', 'FOV_1_match_3', 'FOV_1_match_4', 'FOV_1_match_5']
 
-
-#'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']#,'match11','match12','match13','match14','match15','match16','match17','match18','match19','match20','match21','match22','match23','match24','match25','match26']
+#'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']
 
 p = os.path.join('./',dataset, game_list[0], 'frame', '1', '1.png')
 print(p)
@@ -97,14 +97,14 @@ for game in game_list:
 
 
 
-input_outputfile_name = 'data_path_csv/tracknet_train_list_x.csv'
-label_outputfile_name = 'data_path_csv/tracknet_train_list_y.csv'
+#input_outputfile_name = 'data_path_csv/FOV_2_train_list_x.csv'
+#label_outputfile_name = 'data_path_csv/FOV_2_train_list_y.csv'
 
 #input_outputfile_name = 'data_path_csv/gazebo_train_list_x.csv'
 #label_outputfile_name = 'data_path_csv/gazebo_train_list_y.csv'
 
-#input_outputfile_name = 'data_path_csv/test_input.csv'
-#label_outputfile_name = 'data_path_csv/test_label.csv'
+input_outputfile_name = 'data_path_csv/test_input.csv'
+label_outputfile_name = 'data_path_csv/test_label.csv'
 
 with open(input_outputfile_name,'w') as outputfile:
     for i in range(len(train_x)):

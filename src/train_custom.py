@@ -15,6 +15,8 @@ import itertools
 import cv2
 import math
 
+#python train_custom.py --save_weight=custom --data_path_x=data_path_csv/FOV_2_train_list_x.csv --data_path_y=data_path_csv/FOV_2_train_list_y.csv --debug=True --epochs=10 --augmentation=True
+
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')
 parser.add_argument('--batchsize', type = int, default = 1, help = 'input batch size for training (defalut: 8)')
@@ -25,12 +27,12 @@ parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Ada
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/custom_5.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/2.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 parser.add_argument('--freeze', type = bool, default = False, help = 'this option make freeze layer without last layer')
-parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/tracknet_train_list_x.csv', help = 'this option make freeze layer without last layer')
-parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/tracknet_train_list_y.csv', help = 'this option make freeze layer without last layer')
+parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_2_train_list_x.csv', help = 'x data path')
+parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/FOV_2_train_list_y.csv', help = 'y data path')
 parser.add_argument('--augmentation', type = bool, default = False, help = 'this option make data augmentation')
 
 args = parser.parse_args()
@@ -194,6 +196,7 @@ def display(TP, TN, FP1, FP2, FN):
 	print("Recall:", recall)
 	print('=====================================================')
 
+	total_accuracy_list.append(accuracy)
 
 
 def show(train_loss):
@@ -212,6 +215,7 @@ def show(train_loss):
 	plt.savefig('Loss_of_{}.jpg'.format(args.epochs))
 
 	print('train loss : ' , train_loss)
+	print("total_accuracy_list :",total_accuracy_list)
 
 def dfs_freeze(model):
 	for name, child in model.named_children():
@@ -222,6 +226,8 @@ def dfs_freeze(model):
 			dfs_freeze(child)
 
 	return model
+
+total_accuracy_list = []
 
 model = efficientnet_b3()
 model.to(device)

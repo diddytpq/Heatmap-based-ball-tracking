@@ -22,11 +22,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/tennis_FOV_6.mp4', help='input video name for predict')
+                    default='videos/test_1.mov', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/custom_5.tar', help='input model weight for predict')
+                    default='weights/custom_8.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -94,6 +94,26 @@ def find_ball(pred_image, image_ori, ratio_w, ratio_h):
     #    x, y, w, h, area = stats[i]
 
     return image_ori
+
+def ball_segmentation(image_ori, image_pred, width, height):
+
+    """ret, y_pred = cv2.threshold(image_pred,50,255, cv2.THRESH_BINARY)
+    y_pred_rgb = cv2.cvtColor(y_pred, cv2.COLOR_GRAY2RGB)
+
+    y_pred_rgb[...,0] = 0
+    y_pred_rgb[...,1] = 0
+
+    y_pred_rgb = cv2.resize(y_pred_rgb,(width, height))
+    y_pred_rgb = cv2.resize(y_jet,(width, height))
+    img = cv2.addWeighted(image_ori, 1, y_pred_rgb, 0.8, 0)
+    """
+
+    y_jet = cv2.applyColorMap(image_pred, cv2.COLORMAP_JET)
+    y_jet = cv2.resize(y_jet,(width, height))
+
+    img = cv2.addWeighted(image_ori, 1, y_jet, 0.3, 0)
+
+    return img
 
 
 ################# video #################
@@ -187,8 +207,12 @@ while cap.isOpened():
 
         h_pred = (50 < h_pred) * h_pred
 
+    segment_img = ball_segmentation(frame, h_pred, width, height)    
+
     frame = find_ball(h_pred, frame, ratio_w, ratio_h)
 
+
+    
     #h_pred = cv2.resize(h_pred, dsize=(width, height), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
     #h_pred = cv2.resize(h_pred, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
     #frame = cv2.resize(frame, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
@@ -197,11 +221,14 @@ while cap.isOpened():
 
     cv2.imshow("image",frame)
 
-    cv2.imshow("img1",input_img[0])
-    cv2.imshow("img2",input_img[1])
-    cv2.imshow("img3",input_img[2])
+    #cv2.imshow("img1",input_img[0])
+    #cv2.imshow("img2",input_img[1])
+    #cv2.imshow("img3",input_img[2])
 
     cv2.imshow("h_pred",h_pred)
+
+    cv2.imshow("segment_img",segment_img)
+
 
     t1 = time.time()
 
@@ -211,7 +238,7 @@ while cap.isOpened():
 
     
     if args.record:
-        frame = cv2.resize(frame, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
+        frame = cv2.resize(segment_img, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
         out.write(frame)
 
     key = cv2.waitKey(1)

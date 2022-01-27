@@ -8,20 +8,21 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description = 'video_trans_img')
-parser.add_argument('--dataset', type = str, default='tennis_FOV_dataset', help = 'input your custom dataset folder path')
+parser.add_argument('--dataset', type = str, default='tennis_FOV_2_dataset', help = 'input your custom dataset folder path')
 
 args = parser.parse_args()
 
 #data_folder_list = os.listdir("./" + args.dataset)
-data_folder_list = ['gazebo_match']
+data_folder_list = ['match_3']
 
 print(data_folder_list)
 
 for folder_name in data_folder_list:
 	#p = os.path.join('dataset', 'tennis_FOV' ,game, '*mp4')
-	p = os.path.join(args.dataset, folder_name, 'rally_video', '*mp4')
+	p = os.path.join(args.dataset, folder_name, 'rally_video', '*mov')
 
 	video_list = glob(p)
+	print(video_list)
 	#os.makedirs(folder_name + '/frame/')
 	for videoName in video_list:
 

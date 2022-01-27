@@ -11,8 +11,9 @@ parser = argparse.ArgumentParser(description='label_tool')
 
 
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_dataset/gazebo_match/rally_video/1.mp4', help='input video name for label')
-
+                    default='tennis_FOV_2_dataset/match_4/rally_video/1.mov', help='input video name for label')
+"""parser.add_argument('--video_name', type=str,
+                    default='videos/240fps.MOV', help='input video name for label')"""
 args = parser.parse_args()
 
 
@@ -25,12 +26,13 @@ press_time = 0
 old_x = -1
 old_y = -1
 
+default_radius = 3
 
 def click_and_crop(event, x, y, flags, param):
 	# grab references to the global variables
 	global data,cap,current
 	global drawing, old_x, old_y
-	global image, press_time
+	global image, press_time, default_radius
 
 	if event == cv2.EVENT_MBUTTONDOWN and drawing == False:
 		old_x, old_y = x, y
@@ -58,8 +60,8 @@ def click_and_crop(event, x, y, flags, param):
 		#r = int(np.exp(time.time() -  press_time) * 4 )
 
 
-		if  r < 3:
-			r = 3
+		if  r < default_radius:
+			r = default_radius
 		#cv2.circle(param, old_x, old_y, r, (0,0,255),thickness=-1)
 		data[current] = (old_x, old_y,r)
 		image=toframe(cap,current,total_frame)
@@ -84,7 +86,7 @@ def toframe(cap,n,total_frame, x = None,y = None, r = None):
 		return frame
 
 try :
-	csv_data = pd.read_csv(open(filename+"_predict.csv",'rb'))
+	csv_data = pd.read_csv(open(filename+"_ball.csv",'rb'))
 	csv_x = csv_data['X'].values
 	csv_y = csv_data['Y'].values
 	csv_r = csv_data['R'].values
@@ -184,6 +186,11 @@ while True:
 		else:
 			print('\nYou DONT save the data!!')
 			print('You DONT save the data!!')
+
+	elif key == ord("c"):
+		print("input default radius : ", end = ' ')
+		default_radius = int(input())
+
 
 matchName = filename
 

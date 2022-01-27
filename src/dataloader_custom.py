@@ -52,14 +52,14 @@ class TrackNetLoader(data.Dataset):
         if self.augmentation:
             self.transform = A.Compose([
                     A.HorizontalFlip(p=0.3),
-                    A.Cutout(num_holes=30, max_h_size = 16, max_w_size = 16, fill_value=0, p = 0.3),
+                    A.Cutout(num_holes=20, max_h_size = 16, max_w_size = 16, fill_value=0, p = 0.3),
                     #A.RandomContrast(limit=0.8, p=0.5),
                     #A.ShiftScaleRotate(scale_limit=0.50, rotate_limit=45, p=.5),
                     A.Rotate(limit = (-45,45), p = 0.4),
-                    A.RandomGamma(gamma_limit=(80, 120), p=0.3),
-                    A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit = 0.2, p=0.3),
-                    A.Blur(blur_limit=(3, 3), p =0.2),
-                    A.MultiplicativeNoise(multiplier=[0.5, 1.5], elementwise=True, p=0.2),
+                    A.RandomGamma(gamma_limit=(80, 120), p=0.2),
+                    A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit = 0.2, p=0.2),
+                    #A.Blur(blur_limit=(3, 3), p =0.2),
+                    #A.MultiplicativeNoise(multiplier=[0.5, 1.5], elementwise=True, p=0.1),
                     #A.ChannelShuffle(p=0.3)
                 ],
                 additional_targets = {
@@ -160,6 +160,9 @@ def outcome(y_pred, y_true, tol):
                     max_area = area
             target = rects[max_area_idx]
             (cx_true, cy_true) = (int(target[0] + target[2] / 2), int(target[1] + target[3] / 2))
+
+            print((cx_pred, cy_pred))
+            print((cx_true, cy_true))
             dist = math.sqrt(pow(cx_pred-cx_true, 2)+pow(cy_pred-cy_true, 2))
 
             if dist > tol:
@@ -218,8 +221,8 @@ if __name__ == '__main__' :
     test_data_path_x = 'data_path_csv/test_input.csv'
     test_data_path_y = 'data_path_csv/test_label.csv'
 
-    train_data = TrackNetLoader(test_data_path_x, test_data_path_y , 'test')
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle=True)
+    train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
+    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
@@ -232,7 +235,7 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/custom_1.tar')
+    checkpoint = torch.load('weights/custom_8.tar')
     model.load_state_dict(checkpoint['state_dict'])
 
     for batch_idx, (data, label) in enumerate(train_loader):
@@ -255,14 +258,16 @@ if __name__ == '__main__' :
 
             y_pred = (y_pred * 255).cpu().numpy()
             y_pred = y_pred[0].astype('uint8')
-            y_pred = (50 < y_pred) * y_pred
+            y_pred_50 = (50 < y_pred) * y_pred
+            y_pred_100 = (100 < y_pred) * y_pred
+
                 
             torch.cuda.synchronize()
 
             y_true = (y_true * 255).astype('uint8')
 
 
-        (tp, tn, fp1, fp2, fn) = outcome(y_pred, y_true, 25)
+        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, 25)
         TP += tp
         TN += tn
         FP1 += fp1
@@ -270,10 +275,22 @@ if __name__ == '__main__' :
         FN += fn
 
         debug_img = cv2.hconcat([y_pred[0], y_true[0]])
+        debug_img = cv2.hconcat([y_pred[0], y_pred_50[0], y_pred_100[0], y_true[0]])
         input_img = cv2.hconcat([img_0, img_1,img_2])
+
+        y_jet = cv2.applyColorMap(y_pred_50[0], cv2.COLORMAP_JET)
+
+        test = cv2.cvtColor(img_2, cv2.COLOR_RGB2BGR)
+        test = cv2.addWeighted(test, 1, y_jet, 0.3, 0)
+        test = cv2.resize(test,(1280, 720))
+
+
 
         cv2.imshow("input_img",input_img)
         cv2.imshow("debug_img",debug_img)
+        cv2.imshow("test",test)
+
+
 
         display(TP, TN, FP1, FP2, FN)
 
