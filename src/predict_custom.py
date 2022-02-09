@@ -22,11 +22,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/test_1.mov', help='input video name for predict')
+                    default='videos/1.mp4', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/custom_8.tar', help='input model weight for predict')
+                    default='weights/220128.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -160,6 +160,10 @@ epoch = checkpoint['epoch']
 
 input_img = []
 
+start_frame = 0
+
+cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
+
 while cap.isOpened():
 
 
@@ -241,7 +245,7 @@ while cap.isOpened():
         frame = cv2.resize(segment_img, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
         out.write(frame)
 
-    key = cv2.waitKey(1)
+    key = cv2.waitKey(0)
 
     if key == 27: break
 

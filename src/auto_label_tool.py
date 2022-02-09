@@ -21,16 +21,13 @@ BATCH_SIZE = 1
 HEIGHT=288
 WIDTH=512
 
-
-current = -1
-
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_2_dataset/match_2/rally_video/10.mov', help='input video name for label')
+                    default='tennis_FOV_3_dataset/FOV_3_match_2/rally_video/5.mov', help='input video name for label')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/1.tar', help='input model weight for predict')
+                    default='weights/220128.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -92,17 +89,51 @@ def find_ball(pred_image, image_ori, ratio_w, ratio_h):
 
     x, y , w, h, area = stats[np.argmax(stats[:,-1])]
     x_cen, y_cen = centroids[np.argmax(stats[:,-1])]
-
-    cv2.rectangle(image_ori, (int(x * ratio_w), int(y * ratio_h)), (int((x + w) * ratio_w), int((y + h) * ratio_h)), (255,0,0), 3)
-    cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
-
+    
     radius = int((((x + w) * ratio_w) - (x * ratio_w)) / 2)
 
+    if radius > 6 :
+        cv2.rectangle(image_ori, (int(x * ratio_w), int(y * ratio_h)), (int((x + w) * ratio_w), int((y + h) * ratio_h)), (255,0,0), 3)
+        cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
 
     #for i in range(len(stats)):
     #    x, y, w, h, area = stats[i]
 
     return image_ori, int(x_cen * ratio_w), int(y_cen * ratio_h), radius, 1
+
+def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
+
+    if np.amax(pred_image) <= 0: #no ball
+        return image_ori, 0, 0, 0, 0
+
+    ball_cand_score = []
+
+    nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(pred_image, connectivity = 8)
+    # print(type(stats))
+
+    if len(stats): 
+        stats = np.delete(stats, 0, axis = 0)
+        centroids = np.delete(centroids, 0, axis = 0)
+
+    for i in range(len(stats)):
+        x, y, w, h, area = stats[i]
+
+        score = np.mean(pred_image[y:y+h, x:x+w])
+
+        ball_cand_score.append(score)
+
+    ball_pos = stats[np.argmax(ball_cand_score)]
+    x_cen, y_cen = centroids[np.argmax(ball_cand_score)]
+
+    x, y, w, h, area = ball_pos
+
+    radius = int((((x + w) * ratio_w) - (x * ratio_w)) / 2)
+
+    cv2.rectangle(image_ori, (int(x * ratio_w), int(y * ratio_h)), (int((x + w) * ratio_w), int((y + h) * ratio_h)), (255,0,0), 3)
+    cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
+
+    return image_ori, int(x_cen * ratio_w), int(y_cen * ratio_h), radius, 1
+
 
 
 ################# video #################
@@ -151,9 +182,12 @@ input_img = []
 data = dict()
 racket = dict()
 
+start_frame = 0
+
+cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
+current = start_frame
 
 while cap.isOpened():
-
 
     rets = []
     images = []
@@ -161,7 +195,6 @@ while cap.isOpened():
     
     ret, frame = cap.read()
 
-    current += 1
 
     if ret == 0:
         break
@@ -172,6 +205,7 @@ while cap.isOpened():
     input_img.append(img)
 
     if len(input_img) < 3:
+        current += 1
         continue
 
     if len(input_img) > 3:
@@ -200,9 +234,13 @@ while cap.isOpened():
 
         h_pred = (50 < h_pred) * h_pred
 
-    frame, x, y, r, visibility= find_ball(h_pred, frame, ratio_w, ratio_h)
-    
-    data[current] = (x, y, r)
+    #frame, x, y, r, visibility= find_ball(h_pred, frame, ratio_w, ratio_h)
+    frame, x, y, r, visibility= find_ball_v2(h_pred, frame, ratio_w, ratio_h)
+
+
+    print(r)
+    if r > 6 :
+        data[current] = (x, y, r)
 
     #h_pred = cv2.resize(h_pred, dsize=(width, height), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
     #h_pred = cv2.resize(h_pred, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
@@ -211,6 +249,8 @@ while cap.isOpened():
     #print(h_pred.shape)
 
     cv2.imshow("image",frame)
+    cv2.imshow("h_pred",h_pred)
+
 
     #cv2.imshow("img1",input_img[0])
     #cv2.imshow("img2",input_img[1])
@@ -223,7 +263,7 @@ while cap.isOpened():
 
     print("FPS : ",1/(t1 - t0))
     print((t1 - t0))
-
+    current += 1
     
     if args.record:
         frame = cv2.resize(frame, dsize=(width, height), interpolation=cv2.INTER_LINEAR)

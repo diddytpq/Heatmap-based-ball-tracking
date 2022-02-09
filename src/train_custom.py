@@ -27,7 +27,7 @@ parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Ada
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/2.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/220127.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 parser.add_argument('--freeze', type = bool, default = False, help = 'this option make freeze layer without last layer')

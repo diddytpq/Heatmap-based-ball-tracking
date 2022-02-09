@@ -11,9 +11,11 @@ parser = argparse.ArgumentParser(description='label_tool')
 
 
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_2_dataset/match_4/rally_video/1.mov', help='input video name for label')
+                    default='tennis_FOV_3_dataset/FOV_3_match_2/rally_video/7.mov', help='input video name for label')
+
 """parser.add_argument('--video_name', type=str,
-                    default='videos/240fps.MOV', help='input video name for label')"""
+                    default='videos/fps_120.mp4', help='input video name for label')"""
+					
 args = parser.parse_args()
 
 
@@ -188,8 +190,28 @@ while True:
 			print('You DONT save the data!!')
 
 	elif key == ord("c"):
-		print("input default radius : ", end = ' ')
-		default_radius = int(input())
+		print("increase radius")
+		default_radius += 2
+
+	elif key == ord("x"):
+		print("decrease radius")
+		default_radius -= 2
+
+	elif key == ord("a"):
+		if current in data:
+			del data[current]
+			print('\nYou delete the ball coordinate.')
+			image=toframe(cap,current,total_frame)
+		else:
+			print('\nNo ball coordinate!!')
+
+		if current < total_frame-1:
+			current+=1
+			image=toframe(cap,current,total_frame)
+		else:
+			print('\nCongrats! This is the last frame!!')
+
+		
 
 
 matchName = filename
@@ -216,7 +238,7 @@ for i in range((Cov['index']).shape[0]):
 
 Visibility=[1 for _ in range(len(Frame))]
 df_label = pd.DataFrame(columns=['Frame', 'Visibility', 'X', 'Y', 'R'])
-df_label['Frame'], df_label['Visibility'], df_label['X'], df_label['Y'], df_label['R'] = Frame, Visibility, X, Y, R
+df_label['Frame'], df_label['Visibility'], df_label['X'], df_label['Y'], df_label['R'] = (np.array(Frame)).tolist(), Visibility, X, Y, R
 #Compensate the non-labeled frames due to no visibility of badminton
 for i in range(0, Frame[-1]+1):
 	if i in list(df_label['Frame']):

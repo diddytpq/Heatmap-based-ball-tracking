@@ -10,7 +10,7 @@ import cv2
 from network import *
 import math
 import albumentations as A
-
+import sys
 
 HEIGHT=288
 WIDTH=512
@@ -19,6 +19,7 @@ sigma = 2.5
 
 TP = TN = FP1 = FP2 = FN = 0
 
+path = os.path.dirname(os.path.abspath(__file__))
 
 def genHeatMap(w, h, cx, cy, r, mag):
     if cx < 0 or cy < 0:
@@ -216,10 +217,13 @@ def display(TP, TN, FP1, FP2, FN):
     print('=====================================================')
 
 if __name__ == '__main__' :
+    print('-------------------')
+    
+
     batchsize = 1
 
-    test_data_path_x = 'data_path_csv/test_input.csv'
-    test_data_path_y = 'data_path_csv/test_label.csv'
+    test_data_path_x = 'data_path_csv/test_1_input.csv'
+    test_data_path_y = 'data_path_csv/test_1_label.csv'
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
     train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
@@ -235,7 +239,7 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/custom_8.tar')
+    checkpoint = torch.load('weights/220128.tar')
     model.load_state_dict(checkpoint['state_dict'])
 
     for batch_idx, (data, label) in enumerate(train_loader):
