@@ -22,11 +22,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/1.mp4', help='input video name for predict')
+                    default='videos/2.mov', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/220128.tar', help='input model weight for predict')
+                    default='weights/2.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -92,6 +92,39 @@ def find_ball(pred_image, image_ori, ratio_w, ratio_h):
 
     #for i in range(len(stats)):
     #    x, y, w, h, area = stats[i]
+
+    return image_ori
+
+def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
+
+    if np.amax(pred_image) <= 0: #no ball
+        return image_ori
+
+    ball_cand_score = []
+
+    nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(pred_image, connectivity = 8)
+    # print(type(stats))
+
+    if len(stats): 
+        stats = np.delete(stats, 0, axis = 0)
+        centroids = np.delete(centroids, 0, axis = 0)
+
+    for i in range(len(stats)):
+        x, y, w, h, area = stats[i]
+
+        score = np.mean(pred_image[y:y+h, x:x+w])
+
+        ball_cand_score.append(score)
+
+    ball_pos = stats[np.argmax(ball_cand_score)]
+    x_cen, y_cen = centroids[np.argmax(ball_cand_score)]
+
+    x, y, w, h, area = ball_pos
+
+    radius = int((((x + w) * ratio_w) - (x * ratio_w)) / 2)
+
+    cv2.rectangle(image_ori, (int(x * ratio_w), int(y * ratio_h)), (int((x + w) * ratio_w), int((y + h) * ratio_h)), (255,0,0), 3)
+    cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
 
     return image_ori
 
@@ -213,7 +246,7 @@ while cap.isOpened():
 
     segment_img = ball_segmentation(frame, h_pred, width, height)    
 
-    frame = find_ball(h_pred, frame, ratio_w, ratio_h)
+    frame = find_ball_v2(h_pred, frame, ratio_w, ratio_h)
 
 
     
@@ -245,7 +278,7 @@ while cap.isOpened():
         frame = cv2.resize(segment_img, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
         out.write(frame)
 
-    key = cv2.waitKey(0)
+    key = cv2.waitKey(1)
 
     if key == 27: break
 

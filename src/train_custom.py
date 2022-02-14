@@ -15,7 +15,7 @@ import itertools
 import cv2
 import math
 
-#python train_custom.py --save_weight=custom --data_path_x=data_path_csv/FOV_2_train_list_x.csv --data_path_y=data_path_csv/FOV_2_train_list_y.csv --debug=True --epochs=10 --augmentation=True
+#python train_custom.py --save_weight=220128.tar --data_path_x=data_path_csv/FOV_3_train_list_x.csv --data_path_y=data_path_csv/FOV_3_train_list_y.csv --debug=True --epochs=10 --augmentation=True
 
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')

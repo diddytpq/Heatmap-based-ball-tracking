@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='label_tool')
 
 
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_3_dataset/FOV_3_match_2/rally_video/7.mov', help='input video name for label')
+                    default='tennis_FOV_3_dataset/FOV_3_match_3/rally_video/3.mov', help='input video name for label')
 
 """parser.add_argument('--video_name', type=str,
                     default='videos/fps_120.mp4', help='input video name for label')"""

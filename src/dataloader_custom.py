@@ -142,15 +142,30 @@ def outcome(y_pred, y_true, tol):
             fn += 1
         elif np.max(y_pred[i]) > 0 and np.max(y_true[i]) > 0:
             #h_pred
-            nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(y_pred[i].copy(), connectivity = 8)
+
+            ball_cand_score = []
+
+            y_pred_img = y_pred[i].copy()
+            y_true_img = y_true[i].copy()
+
+
+            nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(y_pred_img, connectivity = 8)
+
             if len(stats): 
                 stats = np.delete(stats, 0, axis = 0)
                 centroids = np.delete(centroids, 0, axis = 0)
 
-            (cx_pred, cy_pred) = centroids[np.argmax(stats[:,-1])]
+            for i in range(len(stats)):
+                x, y, w, h, area = stats[i]
+
+                score = np.mean(y_pred_img[y:y+h, x:x+w])
+
+                ball_cand_score.append(score)
+
+            (cx_pred, cy_pred) = centroids[np.argmax(ball_cand_score)]
 
             #h_true
-            (cnts, _) = cv2.findContours(y_true[i].copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            (cnts, _) = cv2.findContours(y_true_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             rects = [cv2.boundingRect(ctr) for ctr in cnts]
             max_area_idx = 0
             max_area = rects[max_area_idx][2] * rects[max_area_idx][3]
@@ -162,8 +177,8 @@ def outcome(y_pred, y_true, tol):
             target = rects[max_area_idx]
             (cx_true, cy_true) = (int(target[0] + target[2] / 2), int(target[1] + target[3] / 2))
 
-            print((cx_pred, cy_pred))
-            print((cx_true, cy_true))
+            #print((cx_pred, cy_pred))
+            #print((cx_true, cy_true))
             dist = math.sqrt(pow(cx_pred-cx_true, 2)+pow(cy_pred-cy_true, 2))
 
             if dist > tol:
@@ -222,8 +237,8 @@ if __name__ == '__main__' :
 
     batchsize = 1
 
-    test_data_path_x = 'data_path_csv/test_1_input.csv'
-    test_data_path_y = 'data_path_csv/test_1_label.csv'
+    test_data_path_x = 'data_path_csv/test_input_2.csv'
+    test_data_path_y = 'data_path_csv/test_label_2.csv'
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
     train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
@@ -239,7 +254,7 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/220128.tar')
+    checkpoint = torch.load('weights/9.tar')
     model.load_state_dict(checkpoint['state_dict'])
 
     for batch_idx, (data, label) in enumerate(train_loader):

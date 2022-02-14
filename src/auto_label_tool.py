@@ -23,11 +23,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_3_dataset/FOV_3_match_2/rally_video/5.mov', help='input video name for label')
+                    default='tennis_FOV_3_dataset/FOV_3_match_3/rally_video/6.mov', help='input video name for label')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/220128.tar', help='input model weight for predict')
+                    default='weights/2.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -133,8 +133,6 @@ def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
     cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
 
     return image_ori, int(x_cen * ratio_w), int(y_cen * ratio_h), radius, 1
-
-
 
 ################# video #################
 

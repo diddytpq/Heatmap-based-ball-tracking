@@ -1,0 +1,143 @@
+Number of true positive: 1618
+Number of true negative: 417
+Number of false positive FP1: 457
+Number of false positive FP2: 2045
+Number of false negative: 62
+Accuracy: 0.4424874972820178
+Precision: 0.3927184466019418
+Recall: 0.9630952380952381
+accuracy_2: 0.7967893500391543
+F1 score: 0.5579310344827587
+===================================
+
+======================Evaluate=======================
+Number of true positive: 1489
+Number of true negative: 1492
+Number of false positive FP1: 215
+Number of false positive FP2: 970
+Number of false negative: 433
+Accuracy: 0.6481843879104153
+Precision: 0.5568436798803291
+Recall: 0.7747138397502601
+accuracy_2: 0.8214384127858915
+F1 score: 0.6479547432550042
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1603
+Number of true negative: 538
+Number of false positive FP1: 428
+Number of false positive FP2: 1924
+Number of false negative: 106
+Accuracy: 0.46553598608393126
+Precision: 0.40530973451327434
+Recall: 0.9379754242246928
+accuracy_2: 0.800373831775701
+F1 score: 0.5660310734463277
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1564
+Number of true negative: 708
+Number of false positive FP1: 459
+Number of false positive FP2: 1754
+Number of false negative: 114
+Accuracy: 0.49402043922591865
+Precision: 0.4140852528461742
+Recall: 0.932061978545888
+accuracy_2: 0.7985940246045694
+F1 score: 0.5734188817598534
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1569
+Number of true negative: 744
+Number of false positive FP1: 442
+Number of false positive FP2: 1718
+Number of false negative: 126
+Accuracy: 0.50293542074364
+Precision: 0.42075623491552694
+Recall: 0.9256637168141593
+accuracy_2: 0.8028462339465463
+F1 score: 0.5785398230088495
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1594
+Number of true negative: 501
+Number of false positive FP1: 421
+Number of false positive FP2: 1961
+Number of false negative: 122
+Accuracy: 0.45553381169819523
+Precision: 0.40090543259557343
+Recall: 0.9289044289044289
+accuracy_2: 0.7941622441243367
+F1 score: 0.5600843288826423
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1567
+Number of true negative: 908
+Number of false positive FP1: 394
+Number of false positive FP2: 1554
+Number of false negative: 176
+Accuracy: 0.538160469667319
+Precision: 0.4458036984352774
+Recall: 0.8990246701090074
+accuracy_2: 0.812807881773399
+F1 score: 0.5960441232407759
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1567
+Number of true negative: 908
+Number of false positive FP1: 394
+Number of false positive FP2: 1554
+Number of false negative: 176
+Accuracy: 0.538160469667319
+Precision: 0.4458036984352774
+Recall: 0.8990246701090074
+accuracy_2: 0.812807881773399
+F1 score: 0.5960441232407759
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1546
+Number of true negative: 1065
+Number of false positive FP1: 341
+Number of false positive FP2: 1397
+Number of false negative: 250
+Accuracy: 0.5677321156773212
+Precision: 0.4707673568818514
+Recall: 0.8608017817371938
+accuracy_2: 0.8154278575890068
+F1 score: 0.6086614173228347
+=====================================================
+
+
+Number of true positive: 1571
+Number of true negative: 844
+Number of false positive FP1: 378
+Number of false positive FP2: 1618
+Number of false negative: 188
+Accuracy: 0.5251141552511416
+Precision: 0.440426128399215
+Recall: 0.893121091529278
+accuracy_2: 0.810130828581013
+F1 score: 0.5899361622230567
+=====================================================
+
+======================Evaluate=======================
+Number of true positive: 1516
+Number of true negative: 1107
+Number of false positive FP1: 356
+Number of false positive FP2: 1355
+Number of false negative: 265
+Accuracy: 0.5703413785605567
+Precision: 0.46978617911372794
+Recall: 0.8512071869736103
+accuracy_2: 0.8085696670776819
+F1 score: 0.6054313099041533
+=====================================================
+
+
