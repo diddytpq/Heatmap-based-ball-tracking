@@ -75,8 +75,10 @@ class TrackNetLoader(data.Dataset):
     def __getitem__(self, index):
         img_path = self.img_name[index]
         label_path = self.label_name[index]
-        print(img_path)
-        print(label_path)
+        
+        #print(img_path)
+        #print(label_path)
+        
         img_all = []
         label_all = []
         """for i in range(3):

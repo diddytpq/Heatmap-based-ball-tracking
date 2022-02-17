@@ -27,7 +27,7 @@ parser.add_argument('--video_name', type=str,
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/2.tar', help='input model weight for predict')
+                    default='weights/220214.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -238,7 +238,7 @@ while cap.isOpened():
 
     print(r)
     if r > 6 :
-        data[current] = (x, y, r)
+        data[current] = (x, y, r - 2)
 
     #h_pred = cv2.resize(h_pred, dsize=(width, height), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
     #h_pred = cv2.resize(h_pred, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
