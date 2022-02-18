@@ -20,14 +20,14 @@ import math
 
 parser = argparse.ArgumentParser(description = 'Pytorch TrackNet6')
 parser.add_argument('--batchsize', type = int, default = 8, help = 'input batch size for training (defalut: 8)')
-parser.add_argument('--epochs', type = int, default = 20, help = 'number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type = int, default = 10, help = 'number of epochs to train (default: 30)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/220214.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/custom_1.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 parser.add_argument('--freeze', type = bool, default = False, help = 'this option make freeze layer without last layer')
@@ -70,10 +70,6 @@ def outcome(data, y_pred, y_true, tol):
                 h_true = (y_true[i][j] * 255).cpu().numpy()
                 h_pred = h_pred.astype('uint8')
                 h_true = h_true.astype('uint8')
-
-                #print(h_pred.shape)
-                #print(h_true.shape)
-
 
                 debug_img = cv2.hconcat([h_pred, h_true])
 
@@ -160,13 +156,11 @@ def train(epoch):
         optimizer.zero_grad()
         y_pred = model(data)
         loss = WBCE(y_pred, label)
-        #print('Train Epoch" {} [{}/{} ({:.0f}%)]\tLoss : {:.8f}'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader), loss.data))
         train_loss += loss.data
         loss.backward()
         optimizer.step()
-        t1 = time.time()
 
-        #print('Train Epoch" {} [{}/{} ({:.0f}%)]'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader))+'\tLoss :',format(float(loss.data.cpu().numpy()),'.1E'))
+        t1 = time.time()
         print('Train Epoch" {} [{}/{} ({:.0f}%)]'.format(epoch, (batch_idx+1) * len(data), len(train_loader.dataset),100.0 * (batch_idx+1) / len(train_loader))+'\tLoss :',format(float(loss.data.cpu().numpy()),'.1E'),"\t time : ",(t1 - t0),"sec")
         t0 = time.time()
 
@@ -184,6 +178,18 @@ def train(epoch):
     if(epoch % 1 == 0):
         display(TP, TN, FP1, FP2, FN)
         savefilename = args.save_weight + '_{}.tar'.format(epoch)
+
+        if torch.cuda.device_count() > 1:
+            old_checkpoint = list(model.state_dict().keys())
+
+            for old_key_name in old_checkpoint:
+
+                if old_key_name[:7] == 'module.':
+                    new_key_name = old_key_name[7:]
+                    model.state_dict()[new_key_name] = model.state_dict()[old_key_name]
+
+                    del model.state_dict()[old_key_name]
+
         torch.save({'epoch':epoch,'state_dict':model.state_dict(),},savefilename)
     return train_loss
 

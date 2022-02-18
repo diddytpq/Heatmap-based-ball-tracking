@@ -256,7 +256,17 @@ if __name__ == '__main__' :
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-    checkpoint = torch.load('weights/9.tar')
+    checkpoint = torch.load('weights/custom_1.tar')
+
+    if True:
+            old_checkpoint = list(checkpoint['state_dict'].keys())
+
+            for i in old_checkpoint:
+                old_key_name = i    
+                new_key_name = i[7:]
+                checkpoint['state_dict'][new_key_name] = checkpoint['state_dict'][old_key_name]
+                del checkpoint['state_dict'][old_key_name]
+
     model.load_state_dict(checkpoint['state_dict'])
 
     for batch_idx, (data, label) in enumerate(train_loader):
@@ -307,8 +317,8 @@ if __name__ == '__main__' :
 
 
 
-        cv2.imshow("input_img",input_img)
-        cv2.imshow("debug_img",debug_img)
+        #cv2.imshow("input_img",input_img)
+        #cv2.imshow("debug_img",debug_img)
         cv2.imshow("test",test)
 
 
