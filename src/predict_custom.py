@@ -94,7 +94,6 @@ start_frame = 0
 cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
 
 while cap.isOpened():
-    t0 = time.time()
 
     rets = []
     images = []
@@ -116,11 +115,15 @@ while cap.isOpened():
     if len(input_img) > 3:
         input_img = input_img[-3:]
 
-    #unit = unit.reshape(1,9,unit.size()[-2],unit.size()[-1])
+    t0 = time.time()
 
-    unit = tran_input_img(input_img)
-    unit = torch.from_numpy(unit).to(device, dtype=torch.float)#0.005
+    # unit = tran_input_img(input_img)
+    # unit = torch.from_numpy(unit).to(device, dtype=torch.float)#0.005
+
+    unit = tran_input_tensor(input_img, device) #0.0026
+
     torch.cuda.synchronize()
+    t1 = time.time()
     
     with torch.no_grad():
 
@@ -157,7 +160,6 @@ while cap.isOpened():
     cv2.imshow("segment_img",segment_img)
 
 
-    t1 = time.time()
 
 
     print("FPS : ",1/(t1 - t0))
