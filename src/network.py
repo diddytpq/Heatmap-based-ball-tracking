@@ -24,6 +24,7 @@ from torchsummary import summary
 import time
 import copy
 
+from utils import *
 
 
 
@@ -360,24 +361,31 @@ def efficientnet_b7(num_classes=10):
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
+    epoch = 50
 
     #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    data = torch.randn(1, 9, 288, 512).to(device)
+    data = torch.randn(50, 1, 9, 288, 512).to(device)
     model = efficientnet_b3().to(device)
+
+    test_img = np.random.randn(288,512,3)
 
     time_list =[]
 
-    epoch = 50
 
     summary(model, (9, 288, 512),device='cuda')
     
     with torch.no_grad():
         for i in range(epoch):
-            torch.cuda.synchronize()
             t0 = time.time()
-            output = model(data)
             torch.cuda.synchronize()
-            t1 = time.time()
+            output = model(data[i])
+
+            h_pred = (output * 255).cpu().numpy()
+
+            torch.cuda.synchronize()
+            h_pred = (h_pred[0]).astype('uint8')
+            h_pred = np.asarray(h_pred).transpose(1, 2, 0)
+            t1 = time.time()        
 
             #print(i)
 

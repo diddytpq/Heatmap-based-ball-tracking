@@ -94,6 +94,7 @@ start_frame = 0
 cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
 
 while cap.isOpened():
+    t0 = time.time()
 
     rets = []
     images = []
@@ -116,17 +117,15 @@ while cap.isOpened():
         input_img = input_img[-3:]
 
     #unit = unit.reshape(1,9,unit.size()[-2],unit.size()[-1])
-    t0 = time.time()
 
     unit = tran_input_img(input_img)
-
-    unit = torch.from_numpy(unit).to(device, dtype=torch.float)
+    unit = torch.from_numpy(unit).to(device, dtype=torch.float)#0.005
     torch.cuda.synchronize()
     
     with torch.no_grad():
 
-        h_pred = model(unit)
-        torch.cuda.synchronize()
+        h_pred = model(unit) #0.028
+        torch.cuda.synchronize() 
 
         
         h_pred = (h_pred * 255).cpu().numpy()
@@ -134,7 +133,6 @@ while cap.isOpened():
         torch.cuda.synchronize()
         h_pred = (h_pred[0]).astype('uint8')
         h_pred = np.asarray(h_pred).transpose(1, 2, 0)
-        #print(h_pred.shape)
 
         h_pred = (50 < h_pred) * h_pred
 
@@ -142,21 +140,19 @@ while cap.isOpened():
 
     frame = find_ball_v2(h_pred, frame, ratio_w, ratio_h)
 
-
-    
     #h_pred = cv2.resize(h_pred, dsize=(width, height), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)
     #h_pred = cv2.resize(h_pred, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
     #frame = cv2.resize(frame, dsize=(0, 0), fx=0.8, fy=0.8, interpolation=cv2.INTER_LINEAR)
 
     #print(h_pred.shape)
 
-    cv2.imshow("image",frame)
+    #cv2.imshow("image",frame)
 
     #cv2.imshow("img1",input_img[0])
     #cv2.imshow("img2",input_img[1])
     #cv2.imshow("img3",input_img[2])
 
-    cv2.imshow("h_pred",h_pred)
+    #cv2.imshow("h_pred",h_pred)
 
     cv2.imshow("segment_img",segment_img)
 
