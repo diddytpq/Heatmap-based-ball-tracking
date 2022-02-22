@@ -21,7 +21,7 @@ BATCH_SIZE = 1
 HEIGHT=288
 WIDTH=512
 
-parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
+parser = argparse.ArgumentParser(description='auto_label_tool')
 parser.add_argument('--video_name', type=str,
                     default='tennis_FOV_3_dataset/FOV_3_match_3/rally_video/6.mov', help='input video name for label')
 parser.add_argument('--lr', type=float, default=1e-1,

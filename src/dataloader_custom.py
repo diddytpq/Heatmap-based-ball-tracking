@@ -12,6 +12,7 @@ import math
 import albumentations as A
 import sys
 
+
 HEIGHT=288
 WIDTH=512
 mag = 1
@@ -20,6 +21,7 @@ sigma = 2.5
 TP = TN = FP1 = FP2 = FN = 0
 
 path = os.path.dirname(os.path.abspath(__file__))
+
 
 def genHeatMap(w, h, cx, cy, r, mag):
     if cx < 0 or cy < 0:
@@ -232,103 +234,3 @@ def display(TP, TN, FP1, FP2, FN):
     print("accuracy_2:", accuracy_2)
     print("F1 score:", f1_score)
     print('=====================================================')
-
-if __name__ == '__main__' :
-    print('-------------------')
-    
-
-    batchsize = 1
-
-    test_data_path_x = 'data_path_csv/test_input_2.csv'
-    test_data_path_y = 'data_path_csv/test_label_2.csv'
-
-    train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print('GPU Use : ',torch.cuda.is_available())
-
-
-    model = efficientnet_b3()
-    model.to(device)
-
-    optimizer = torch.optim.Adadelta(
-        model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
-    #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
-
-    checkpoint = torch.load('weights/custom_1.tar')
-
-    if True:
-            old_checkpoint = list(checkpoint['state_dict'].keys())
-
-            for i in old_checkpoint:
-                old_key_name = i    
-                new_key_name = i[7:]
-                checkpoint['state_dict'][new_key_name] = checkpoint['state_dict'][old_key_name]
-                del checkpoint['state_dict'][old_key_name]
-
-    model.load_state_dict(checkpoint['state_dict'])
-
-    for batch_idx, (data, label) in enumerate(train_loader):
-
-
-        img_0, img_1, img_2 = np.array(data[0,0:3,:,:]), np.array(data[0,3:6,:,:]), np.array(data[0,6:,:,:])
-
-        img_0 = (img_0.transpose(1, 2, 0) * 255).astype('uint8')
-        img_1 = (img_1.transpose(1, 2, 0) * 255).astype('uint8')
-        img_2 = (img_2.transpose(1, 2, 0) * 255).astype('uint8')
-
-
-        data = data.type(torch.FloatTensor).to(device)
-        with torch.no_grad():
-            torch.cuda.synchronize()
-
-            y_pred = model(data)
-
-            y_true = np.array(label[0])
-
-            y_pred = (y_pred * 255).cpu().numpy()
-            y_pred = y_pred[0].astype('uint8')
-            y_pred_50 = (50 < y_pred) * y_pred
-            y_pred_100 = (100 < y_pred) * y_pred
-
-                
-            torch.cuda.synchronize()
-
-            y_true = (y_true * 255).astype('uint8')
-
-
-        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, 25)
-        TP += tp
-        TN += tn
-        FP1 += fp1
-        FP2 += fp2
-        FN += fn
-
-        debug_img = cv2.hconcat([y_pred[0], y_true[0]])
-        debug_img = cv2.hconcat([y_pred[0], y_pred_50[0], y_pred_100[0], y_true[0]])
-        input_img = cv2.hconcat([img_0, img_1,img_2])
-
-        y_jet = cv2.applyColorMap(y_pred_50[0], cv2.COLORMAP_JET)
-
-        test = cv2.cvtColor(img_2, cv2.COLOR_RGB2BGR)
-        test = cv2.addWeighted(test, 1, y_jet, 0.3, 0)
-        test = cv2.resize(test,(1280, 720))
-
-
-
-        #cv2.imshow("input_img",input_img)
-        #cv2.imshow("debug_img",debug_img)
-        cv2.imshow("test",test)
-
-
-
-        display(TP, TN, FP1, FP2, FN)
-
-        key = cv2.waitKey(1)
-
-
-
-        if key == 27 : 
-            cv2.destroyAllWindows()
-            break

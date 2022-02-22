@@ -21,7 +21,7 @@ BATCH_SIZE = 1
 HEIGHT=288
 WIDTH=512
 
-parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
+parser = argparse.ArgumentParser(description='predict_custom')
 parser.add_argument('--video_name', type=str,
                     default='videos/2.mov', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,

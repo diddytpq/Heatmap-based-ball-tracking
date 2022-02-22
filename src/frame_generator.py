@@ -7,7 +7,7 @@ from glob import glob
 import argparse
 
 
-parser = argparse.ArgumentParser(description = 'video_trans_img')
+parser = argparse.ArgumentParser(description = 'frame_generator')
 parser.add_argument('--dataset', type = str, default='tennis_FOV_3_dataset', help = 'input your custom dataset folder path')
 
 args = parser.parse_args()

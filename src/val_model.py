@@ -6,8 +6,7 @@ from network import *
 import argparse
 from dataloader_custom import *
 
-# python dataloader_custom.py --load_weight=weights/new_train/custom_1.tar
-
+# python vel_model.py --load_weight=weights/new_train/custom_1.tar
 
 HEIGHT=288
 WIDTH=512
@@ -23,6 +22,11 @@ parser = argparse.ArgumentParser(description='dataloader_custom')
 parser.add_argument('--load_weight', type=str,
                     default='weights/220214.tar', help='input model weight for predict')
 
+parser.add_argument('--label_path_x', type = str, 
+                    default = 'data_path_csv/test_input_2.csv', help = 'x data path')
+parser.add_argument('--data_path_y', type = str, 
+                    default = 'data_path_csv/test_label_2.csv', help = 'y data path')
+
 parser.add_argument('--debug', type=bool,
                     default=False, help='check predict img')
 
@@ -35,8 +39,8 @@ if __name__ == '__main__' :
 
     batchsize = 1
 
-    test_data_path_x = 'data_path_csv/test_input_2.csv'
-    test_data_path_y = 'data_path_csv/test_label_2.csv'
+    test_data_path_x = args.label_path_x
+    test_data_path_y = args.label_path_y
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
     train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
