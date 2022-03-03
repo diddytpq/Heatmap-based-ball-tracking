@@ -43,3 +43,4 @@ for folder_name in data_folder_list:
 			count += 1
 			success, image = cap.read()
 			print(videoName,count)
+

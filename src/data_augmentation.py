@@ -14,7 +14,7 @@ HEIGHT=288
 WIDTH=512
 
 
-parser = argparse.ArgumentParser(description = 'data_augmentation')
+parser = argparse.ArgumentParser(description = 'video_trans_img')
 parser.add_argument('--dataset', type = str, default='tennis_FOV_dataset', help = 'input your custom dataset folder path')
 parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/tracknet_train_list_x.csv', help = 'this option make freeze layer without last layer')
 parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/tracknet_train_list_y.csv', help = 'this option make freeze layer without last layer')

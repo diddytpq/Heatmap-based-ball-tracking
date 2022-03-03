@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import torch
 
 def find_ball(pred_image, image_ori, ratio_w, ratio_h):
 
@@ -25,7 +24,6 @@ def find_ball(pred_image, image_ori, ratio_w, ratio_h):
     #    x, y, w, h, area = stats[i]
 
     return image_ori
-
 
 def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
 
@@ -53,11 +51,10 @@ def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
 
     x, y, w, h, area = ball_pos
 
-    new_cen_x = int(x_cen * ratio_w)
-    new_cen_y = int(y_cen * ratio_h)
+    radius = int((((x + w) * ratio_w) - (x * ratio_w)) / 2)
 
     cv2.rectangle(image_ori, (int(x * ratio_w), int(y * ratio_h)), (int((x + w) * ratio_w), int((y + h) * ratio_h)), (255,0,0), 3)
-    cv2.circle(image_ori, (new_cen_x, new_cen_y),  3, (0,0,255), -1)
+    cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
 
     return image_ori
 
@@ -80,28 +77,6 @@ def tran_input_img(img_list):
         trans_img.append(img[2])
 
     trans_img = np.asarray(trans_img)
-
-    return trans_img.reshape(1,trans_img.shape[0],trans_img.shape[1],trans_img.shape[2])
-
-def tran_input_tensor(img_data, device):
-
-    trans_img = []
-
-    img_list = torch.from_numpy(np.array(img_data)).to(device, dtype=torch.float)
-
-    for i in range(len(img_list)):
-
-        img = img_list[i]
-
-        img = img.flip(-1)
-
-        img = img.permute(2, 0, 1) / 255.0
-
-        trans_img.append(img[0])
-        trans_img.append(img[1])
-        trans_img.append(img[2])
-    
-    trans_img = torch.stack(trans_img)
 
     return trans_img.reshape(1,trans_img.shape[0],trans_img.shape[1],trans_img.shape[2])
 

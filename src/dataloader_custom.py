@@ -7,7 +7,7 @@ import os
 from PIL import Image
 import random
 import cv2
-from network import *
+from models.network import *
 import math
 import albumentations as A
 import sys
@@ -212,13 +212,17 @@ def evaluation(TP, TN, FP1, FP2, FN):
     except:
         accuracy_2 = 0
 
+    try:
+        accuracy_3 = (TP) / (TP + FP1 +  FN)
+    except:
+        accuracy_3 = 0
         
     try:
         f1_score = 2 * (precision * recall)/(precision + recall)
     except:
         f1_score = 0
 
-    return (accuracy, precision, recall, accuracy_2, f1_score)
+    return (accuracy, precision, recall,  f1_score, accuracy_2, accuracy_3)
 
 def display(TP, TN, FP1, FP2, FN):
     print('======================Evaluate=======================')
@@ -227,10 +231,11 @@ def display(TP, TN, FP1, FP2, FN):
     print("Number of false positive FP1:", FP1)
     print("Number of false positive FP2:", FP2)
     print("Number of false negative:", FN)
-    (accuracy, precision, recall, accuracy_2, f1_score)= evaluation(TP, TN, FP1, FP2, FN)
+    (accuracy, precision, recall,  f1_score, accuracy_2, accuracy_3)= evaluation(TP, TN, FP1, FP2, FN)
     print("Accuracy:", accuracy)
     print("Precision:", precision)
     print("Recall:", recall)
-    print("accuracy_2:", accuracy_2)
     print("F1 score:", f1_score)
+    print("Accuracy_2:", accuracy_2)
+    print("Accuracy_3:", accuracy_3)
     print('=====================================================')

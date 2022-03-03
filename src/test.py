@@ -1,120 +1,52 @@
-import numpy as np
+from efficientnet_pytorch import EfficientNet
+
 import torch
-import os
-import cv2
-from network import *
-import argparse
-from dataloader_custom import *
+import torch.nn as nn
+import torch.nn.functional as F
+from torchsummary import summary
+from torch import optim
 
-# python dataloader_custom.py --load_weight=weights/new_train/custom_1.tar
+import time
+import numpy as np
 
+class EfficientNet_MultiLabel(nn.Module):
+    def __init__(self, in_channels):
+        super(EfficientNet_MultiLabel, self).__init__()
+        self.network = EfficientNet.from_pretrained('efficientnet-b3', in_channels=in_channels)
+        self.output_layer = nn.Linear(1000, 26)
 
-HEIGHT=288
-WIDTH=512
-mag = 1
-sigma = 2.5
-
-TP = TN = FP1 = FP2 = FN = 0
-
-path = os.path.dirname(os.path.abspath(__file__))
-
-parser = argparse.ArgumentParser(description='dataloader_custom')
-
-parser.add_argument('--load_weight', type=str,
-                    default='weights/220214.tar', help='input model weight for predict')
-
-parser.add_argument('--debug', type=bool,
-                    default=False, help='check predict img')
-
-args = parser.parse_args()
+    def forward(self, x):
+        x = F.relu(self.network(x))
+        x = torch.sigmoid(self.output_layer(x))
+        return x
 
 
-if __name__ == '__main__' :
-    print('-------------------')
-    
-
-    batchsize = 1
-
-    test_data_path_x = 'data_path_csv/test_input_2.csv'
-    test_data_path_y = 'data_path_csv/test_label_2.csv'
-
-    train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
-
+if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
 
+    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    data = torch.randn(1, 9, 288, 512).to(device)
+    model = EfficientNet_MultiLabel(in_channels=9).to(device)
 
-    model = efficientnet_b3()
-    model.to(device)
+    time_list =[]
 
-    optimizer = torch.optim.Adadelta(
-        model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
-    #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
+    epoch = 50
 
-    checkpoint = torch.load(args.load_weight)
-
-    model.load_state_dict(checkpoint['state_dict'])
-
-    for batch_idx, (data, label) in enumerate(train_loader):
-
-        if args.debug:
-            img_0, img_1, img_2 = np.array(data[0,0:3,:,:]), np.array(data[0,3:6,:,:]), np.array(data[0,6:,:,:])
-
-            img_0 = (img_0.transpose(1, 2, 0) * 255).astype('uint8')
-            img_1 = (img_1.transpose(1, 2, 0) * 255).astype('uint8')
-            img_2 = (img_2.transpose(1, 2, 0) * 255).astype('uint8')
-
-
-        data = data.type(torch.FloatTensor).to(device)
-        with torch.no_grad():
+    summary(model, (9, 288, 512),device='cuda')
+    
+    with torch.no_grad():
+        for i in range(epoch):
             torch.cuda.synchronize()
-
-            y_pred = model(data)
-
-            y_true = np.array(label[0])
-
-            y_pred = (y_pred * 255).cpu().numpy()
-            y_pred = y_pred[0].astype('uint8')
-            y_pred_50 = (50 < y_pred) * y_pred
-            y_pred_100 = (100 < y_pred) * y_pred
-
-                
+            t0 = time.time()
+            output = model(data)
             torch.cuda.synchronize()
+            t1 = time.time()
 
-            y_true = (y_true * 255).astype('uint8')
+            #print(i)
 
-
-        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, 25)
-        TP += tp
-        TN += tn
-        FP1 += fp1
-        FP2 += fp2
-        FN += fn
-        if args.debug:
-
-            debug_img = cv2.hconcat([y_pred[0], y_true[0]])
-            debug_img = cv2.hconcat([y_pred[0], y_pred_50[0], y_pred_100[0], y_true[0]])
-            input_img = cv2.hconcat([img_0, img_1,img_2])
-
-            y_jet = cv2.applyColorMap(y_pred_50[0], cv2.COLORMAP_JET)
-
-            test = cv2.cvtColor(img_2, cv2.COLOR_RGB2BGR)
-            test = cv2.addWeighted(test, 1, y_jet, 0.3, 0)
-            test = cv2.resize(test,(1280, 720))
-
-            cv2.imshow("input_img",input_img)
-            cv2.imshow("debug_img",debug_img)
-            cv2.imshow("test",test)
-
-
-
-        display(TP, TN, FP1, FP2, FN)
-
-        key = cv2.waitKey(1)
-
-
-
-        if key == 27 : 
-            cv2.destroyAllWindows()
-            break
+            time_list.append(t1-t0)
+            #print('output size:', output.size())
+    print("output_shape : ",output.size())
+    print("avg time : ", np.mean(time_list))
+    print("avg FPS : ", 1 / np.mean(time_list))

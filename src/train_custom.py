@@ -12,25 +12,28 @@ import itertools
 import cv2
 import math
 import argparse
-from network import *
+#from network import *
 from dataloader_custom import TrackNetLoader
+from models.network import *
+import time
 
-#python train_custom.py --epochs=10 --multi_gpu=True --augmentation=True
+#python train_custom.py --epochs=10 --multi_gpu=True 
 
 parser = argparse.ArgumentParser(description = 'train_custom')
 parser.add_argument('--batchsize', type = int, default = 10, help = 'input batch size for training (defalut: 8)')
 parser.add_argument('--epochs', type = int, default = 10, help = 'number of epochs to train (default: 30)')
-parser.add_argument('--lr', type = float, default = 0.1, help = 'learning rate (default: 1)')
+parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
+parser.add_argument('--retrain', type = bool, default = False, help = 'this option check weight retrain')
 parser.add_argument('--load_weight', type = str, default = 'weights/220214.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
-parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_3_train_list_x.csv', help = 'x data path')
-parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/FOV_3_train_list_y.csv', help = 'y data path')
+parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_2_train_list_x.csv', help = 'x data path')
+parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/FOV_2_train_list_y.csv', help = 'y data path')
 parser.add_argument('--augmentation', type = bool, default = False, help = 'this option make data augmentation')
 parser.add_argument('--multi_gpu', type = bool, default = False, help = 'train multi gpu')
 
@@ -156,6 +159,7 @@ def train(epoch):
         optimizer.zero_grad()
         y_pred = model(data)
         loss = WBCE(y_pred, label)
+
         train_loss += loss.data
         loss.backward()
         optimizer.step()
@@ -179,7 +183,7 @@ def train(epoch):
     train_loss /= len(train_loader)
     if(epoch % 1 == 0):
         display(TP, TN, FP1, FP2, FN)
-        savefilename = args.save_weight + '_{}.tar'.format(epoch)
+        savefilename = 'weights/' + args.save_weight + '_{}.tar'.format(epoch)
 
         if(args.multi_gpu):
             torch.save({'epoch':epoch,'state_dict':model.module.state_dict(),},savefilename)
@@ -226,35 +230,53 @@ def show(train_loss):
 
 def dfs_freeze(model):
     for name, child in model.named_children():
-        #print(name)
-        if name not in ['upsample','upsample2','upsample3','upsample4','upsample5','upsample6']:
+        if name not in ['Up_Block_1','Up_Block_2','Up_Block_3','Up_Block_4','Up_Block_5']:
             for param in child.parameters():
-                param.requires_grad = False
+                param.requires_grad_(False)
+
             dfs_freeze(child)
 
     return model
 
 total_accuracy_list = []
 
-model = efficientnet_b3()
+model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
 
 model.to(device)
+
 if args.optimizer == 'Adadelta':
     optimizer = torch.optim.Adadelta(model.parameters(), lr=args.lr, rho=0.9, eps=1e-06, weight_decay=0)
-    #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
-else:
+
+elif args.optimizer == 'SGD':
     optimizer = torch.optim.SGD(model.parameters(), lr = args.lr, weight_decay = args.weight_decay, momentum = args.momentum)
 
-if(args.load_weight):
-     print('======================Retrain=======================')
-     checkpoint = torch.load(args.load_weight)
-     model.load_state_dict(checkpoint['state_dict'])
-     epoch = checkpoint['epoch']
+elif args.optimizer == 'Adam':
+    optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
+
+if args.retrain:
+    if(args.load_weight):
+        print('======================Retrain=======================')
+        checkpoint = torch.load(args.load_weight)
+        model.load_state_dict(checkpoint['state_dict'])
+        epoch = checkpoint['epoch']
+
+else:
+     print('======================new train weight=======================')
+     checkpoint = torch.load("weights/custom_b3.pth")
+     model.load_state_dict(checkpoint)
+     
+"""if True:
+    print("==================back bone freeze==================")
+    model = dfs_freeze(model)"""
+    
 if(args.multi_gpu):
     if torch.cuda.device_count() > 1:
         print("==================Multi GPU Train===================")
         model = nn.DataParallel(model)
+
+
+
 
 train_loss = []
 

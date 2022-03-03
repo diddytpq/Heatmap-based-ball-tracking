@@ -2,11 +2,11 @@ import numpy as np
 import torch
 import os
 import cv2
-from network import *
+from models.network import *
 import argparse
 from dataloader_custom import *
 
-# python vel_model.py --load_weight=weights/new_train/custom_1.tar
+# python val_model.py --load_weight=weights/21~40/custom_11.tar
 
 HEIGHT=288
 WIDTH=512
@@ -22,10 +22,13 @@ parser = argparse.ArgumentParser(description='dataloader_custom')
 parser.add_argument('--load_weight', type=str,
                     default='weights/220214.tar', help='input model weight for predict')
 
-parser.add_argument('--label_path_x', type = str, 
-                    default = 'data_path_csv/test_input_2.csv', help = 'x data path')
+parser.add_argument('--data_path_x', type = str, 
+                    default = 'data_path_csv/test_input_total.csv', help = 'x data path')
 parser.add_argument('--data_path_y', type = str, 
-                    default = 'data_path_csv/test_label_2.csv', help = 'y data path')
+                    default = 'data_path_csv/test_label_total.csv', help = 'y data path')
+
+parser.add_argument('--tol', type = int, 
+                    default = '8', help = 'y data path')
 
 parser.add_argument('--debug', type=bool,
                     default=False, help='check predict img')
@@ -39,8 +42,8 @@ if __name__ == '__main__' :
 
     batchsize = 1
 
-    test_data_path_x = args.label_path_x
-    test_data_path_y = args.label_path_y
+    test_data_path_x = args.data_path_x
+    test_data_path_y = args.data_path_y
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
     train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
@@ -48,8 +51,8 @@ if __name__ == '__main__' :
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
 
-
-    model = efficientnet_b3()
+    model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+    #model = efficientnet_b3()
     model.to(device)
 
     optimizer = torch.optim.Adadelta(
@@ -89,7 +92,7 @@ if __name__ == '__main__' :
             y_true = (y_true * 255).astype('uint8')
 
 
-        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, 25)
+        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, args.tol)
         TP += tp
         TN += tn
         FP1 += fp1
