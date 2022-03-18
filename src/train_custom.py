@@ -29,13 +29,13 @@ parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum 
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
 parser.add_argument('--retrain', type = bool, default = False, help = 'this option check weight retrain')
-parser.add_argument('--load_weight', type = str, default = 'weights/220214.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/220304.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
-parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
-parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_2_train_list_x.csv', help = 'x data path')
-parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/FOV_2_train_list_y.csv', help = 'y data path')
+parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/test_input_1.csv', help = 'x data path')
+parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/test_label_1.csv', help = 'y data path')
 parser.add_argument('--augmentation', type = bool, default = False, help = 'this option make data augmentation')
 parser.add_argument('--multi_gpu', type = bool, default = False, help = 'train multi gpu')
+parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 
 args = parser.parse_args()
 
@@ -43,7 +43,7 @@ args = parser.parse_args()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('GPU Use : ',torch.cuda.is_available())
 train_data = TrackNetLoader(args.data_path_x, args.data_path_y, augmentation = args.augmentation)
-train_loader = DataLoader(dataset = train_data, batch_size=args.batchsize, shuffle=True)
+train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size=args.batchsize, shuffle=True)
 
 def outcome(data, y_pred, y_true, tol):
     n = y_pred.shape[0]
@@ -266,9 +266,9 @@ else:
      checkpoint = torch.load("weights/custom_b3.pth")
      model.load_state_dict(checkpoint)
      
-"""if True:
+if True:
     print("==================back bone freeze==================")
-    model = dfs_freeze(model)"""
+    model = dfs_freeze(model)
     
 if(args.multi_gpu):
     if torch.cuda.device_count() > 1:

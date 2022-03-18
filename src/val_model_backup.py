@@ -46,7 +46,7 @@ if __name__ == '__main__' :
     test_data_path_y = args.data_path_y
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
+    train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size = batchsize, shuffle=False, persistent_workers=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
@@ -84,7 +84,7 @@ if __name__ == '__main__' :
             y_pred = (y_pred * 255).cpu().numpy()
             y_pred = y_pred[0].astype('uint8')
             y_pred_50 = (50 < y_pred) * y_pred
-            y_pred_100 = (100 < y_pred) * y_pred
+            y_pred_100 = (150 < y_pred) * y_pred
 
                 
             torch.cuda.synchronize()

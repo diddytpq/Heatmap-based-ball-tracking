@@ -1,8 +1,14 @@
+from pathlib import Path
 import math
 from re import X
 import sys
 
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.parents[0].as_posix())
+
 sys.path.append("../models")
+sys.path.append("..")
+
 
 import torch
 import torch.nn as nn
@@ -247,6 +253,7 @@ if __name__ == "__main__":
     model = EfficientNet(1.2, 1.4).to(device)
     epoch = 50
     time_list =[]
+    model.eval()
 
     from torchsummary import summary
     summary(model.cuda(), (9, 288, 512))

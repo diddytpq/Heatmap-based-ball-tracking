@@ -14,8 +14,10 @@ import cv2
 import math
 from PIL import Image
 import time
-from network import *
+from models.network import *
 from utils import *
+
+# python predict_custom.py --load_weight=weights/21~40/custom_11.tar
 
 BATCH_SIZE = 1
 HEIGHT=288
@@ -23,11 +25,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/2.mov', help='input video name for predict')
+                    default='videos/test_3.mp4', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/220214.tar', help='input model weight for predict')
+                    default='weights/220304.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -73,7 +75,10 @@ if args.record:
 #f.write('Frame,Visibility,X,Y,Time\n')
 
 ############### TrackNet ################
-model = efficientnet_b3()
+#model = efficientnet_b3()
+
+model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+
 model.to(device)
 if args.optimizer == 'Ada':
     optimizer = torch.optim.Adadelta(
@@ -85,7 +90,7 @@ else:
 checkpoint = torch.load(args.load_weight)
 model.load_state_dict(checkpoint['state_dict'])
 epoch = checkpoint['epoch']
-#model.eval()
+model.eval()
 
 input_img = []
 
@@ -125,6 +130,8 @@ while cap.isOpened():
     
     with torch.no_grad():
 
+        unit /= 255
+
         h_pred = model(unit)
         torch.cuda.synchronize()
 
@@ -136,7 +143,7 @@ while cap.isOpened():
         h_pred = np.asarray(h_pred).transpose(1, 2, 0)
         #print(h_pred.shape)
 
-        h_pred = (50 < h_pred) * h_pred
+        h_pred = (150 < h_pred) * h_pred
 
     segment_img = ball_segmentation(frame, h_pred, width, height)    
 
@@ -156,9 +163,9 @@ while cap.isOpened():
     #cv2.imshow("img2",input_img[1])
     #cv2.imshow("img3",input_img[2])
 
-    cv2.imshow("h_pred",h_pred)
+    #cv2.imshow("h_pred",h_pred)
 
-    cv2.imshow("segment_img",segment_img)
+    #cv2.imshow("segment_img",segment_img)
 
 
     t1 = time.time()
@@ -169,7 +176,7 @@ while cap.isOpened():
 
     
     if args.record:
-        frame = cv2.resize(segment_img, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
+        frame = cv2.resize(frame, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
         out.write(frame)
 
     key = cv2.waitKey(1)

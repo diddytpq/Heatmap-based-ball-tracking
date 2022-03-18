@@ -232,10 +232,14 @@ def display(TP, TN, FP1, FP2, FN):
     print("Number of false positive FP2:", FP2)
     print("Number of false negative:", FN)
     (accuracy, precision, recall,  f1_score, accuracy_2, accuracy_3)= evaluation(TP, TN, FP1, FP2, FN)
-    print("Accuracy:", accuracy)
+    
+    print(" ")
     print("Precision:", precision)
     print("Recall:", recall)
     print("F1 score:", f1_score)
+    print(" ")
+    print("Accuracy:", accuracy)
     print("Accuracy_2:", accuracy_2)
     print("Accuracy_3:", accuracy_3)
     print('=====================================================')
+

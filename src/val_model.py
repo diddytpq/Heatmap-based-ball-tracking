@@ -3,6 +3,8 @@ import torch
 import os
 import cv2
 from models.network import *
+from models.network_b0 import *
+
 import argparse
 from dataloader_custom import *
 
@@ -46,12 +48,14 @@ if __name__ == '__main__' :
     test_data_path_y = args.data_path_y
 
     train_data = TrackNetLoader(test_data_path_x, test_data_path_y , augmentation = False)
-    train_loader = DataLoader(dataset = train_data, batch_size=batchsize, shuffle = False)
+    train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size = batchsize, shuffle=False, persistent_workers=True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
 
-    model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+    #model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+    model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
+    
     #model = efficientnet_b3()
     model.to(device)
 
@@ -62,6 +66,8 @@ if __name__ == '__main__' :
     checkpoint = torch.load(args.load_weight)
 
     model.load_state_dict(checkpoint['state_dict'])
+
+    model.eval()
 
     for batch_idx, (data, label) in enumerate(train_loader):
 
@@ -83,8 +89,8 @@ if __name__ == '__main__' :
 
             y_pred = (y_pred * 255).cpu().numpy()
             y_pred = y_pred[0].astype('uint8')
-            y_pred_50 = (50 < y_pred) * y_pred
             y_pred_100 = (100 < y_pred) * y_pred
+            y_pred_150 = (150 < y_pred) * y_pred
 
                 
             torch.cuda.synchronize()
@@ -92,7 +98,7 @@ if __name__ == '__main__' :
             y_true = (y_true * 255).astype('uint8')
 
 
-        (tp, tn, fp1, fp2, fn) = outcome(y_pred_50, y_true, args.tol)
+        (tp, tn, fp1, fp2, fn) = outcome(y_pred_150, y_true, args.tol)
         TP += tp
         TN += tn
         FP1 += fp1
@@ -101,10 +107,10 @@ if __name__ == '__main__' :
         if args.debug:
 
             debug_img = cv2.hconcat([y_pred[0], y_true[0]])
-            debug_img = cv2.hconcat([y_pred[0], y_pred_50[0], y_pred_100[0], y_true[0]])
+            debug_img = cv2.hconcat([y_pred[0], y_pred_100[0], y_pred_150[0], y_true[0]])
             input_img = cv2.hconcat([img_0, img_1,img_2])
 
-            y_jet = cv2.applyColorMap(y_pred_50[0], cv2.COLORMAP_JET)
+            y_jet = cv2.applyColorMap(y_pred_150[0], cv2.COLORMAP_JET)
 
             test = cv2.cvtColor(img_2, cv2.COLOR_RGB2BGR)
             test = cv2.addWeighted(test, 1, y_jet, 0.3, 0)
