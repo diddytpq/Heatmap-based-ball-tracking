@@ -1,23 +1,19 @@
-from pathlib import Path
 import math
 from re import X
 import sys
+from pathlib import Path
 
 FILE = Path(__file__).absolute()
-sys.path.append(FILE.parents[0].as_posix())
-
-sys.path.append("../models")
-sys.path.append("..")
-
+sys.path.append(FILE.parents[0].as_posix()) 
 
 import torch
 import torch.nn as nn
 
-from models.layers import conv_bn_act
-from models.layers import SamePadConv2d
-from models.layers import Flatten
-from models.layers import SEModule
-from models.layers import DropConnect
+from layers import conv_bn_act
+from layers import SamePadConv2d
+from layers import Flatten
+from layers import SEModule
+from layers import DropConnect
 
 class Swish(nn.Module):
     def __init__(self):

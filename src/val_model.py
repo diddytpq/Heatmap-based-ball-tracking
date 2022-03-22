@@ -8,7 +8,7 @@ from models.network_b0 import *
 import argparse
 from dataloader_custom import *
 
-# python val_model.py --load_weight=weights/21~40/custom_11.tar
+# python val_model.py --load_weight=weights/custom_20.tar --tiny=1
 
 HEIGHT=288
 WIDTH=512
@@ -22,7 +22,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser(description='dataloader_custom')
 
 parser.add_argument('--load_weight', type=str,
-                    default='weights/220214.tar', help='input model weight for predict')
+                    default='weights/220304.tar', help='input model weight for predict')
 
 parser.add_argument('--data_path_x', type = str, 
                     default = 'data_path_csv/test_input_total.csv', help = 'x data path')
@@ -33,6 +33,9 @@ parser.add_argument('--tol', type = int,
                     default = '8', help = 'y data path')
 
 parser.add_argument('--debug', type=bool,
+                    default=False, help='check predict img')
+
+parser.add_argument('--tiny', type=bool,
                     default=False, help='check predict img')
 
 args = parser.parse_args()
@@ -53,19 +56,23 @@ if __name__ == '__main__' :
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
 
-    #model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
-    model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
-    
-    #model = efficientnet_b3()
+
+    if args.tiny:
+        model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
+        checkpoint = torch.load(args.load_weight)
+        model.load_state_dict(checkpoint['state_dict'])
+        
+
+    else:
+        model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+        checkpoint = torch.load(args.load_weight)
+        model.load_state_dict(checkpoint['state_dict'])
+
     model.to(device)
 
     optimizer = torch.optim.Adadelta(
         model.parameters(), lr=1, rho=0.9, eps=1e-06, weight_decay=0)
     #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
-
-    checkpoint = torch.load(args.load_weight)
-
-    model.load_state_dict(checkpoint['state_dict'])
 
     model.eval()
 

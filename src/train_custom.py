@@ -17,24 +17,29 @@ from dataloader_custom import TrackNetLoader
 from models.network import *
 import time
 
-#python train_custom.py --epochs=10 --multi_gpu=True 
+# python train_custom.py --multi_gpu=True --load_weight=weights/220304.tar --freeze=Ture
 
 parser = argparse.ArgumentParser(description = 'train_custom')
 parser.add_argument('--batchsize', type = int, default = 10, help = 'input batch size for training (defalut: 8)')
-parser.add_argument('--epochs', type = int, default = 10, help = 'number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type = int, default = 20, help = 'number of epochs to train (default: 40)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 4)')
 parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Adadelta or SGD (default: Adadelta)')
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--retrain', type = bool, default = False, help = 'this option check weight retrain')
+
 parser.add_argument('--load_weight', type = str, default = 'weights/220304.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
-parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/test_input_1.csv', help = 'x data path')
-parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/test_label_1.csv', help = 'y data path')
+
+parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_3_train_list_x.csv', help = 'x data path')
+parser.add_argument('--data_path_y', type = str, default = 'data_path_csv/FOV_3_train_list_y.csv', help = 'y data path')
+
 parser.add_argument('--augmentation', type = bool, default = False, help = 'this option make data augmentation')
 parser.add_argument('--multi_gpu', type = bool, default = False, help = 'train multi gpu')
+parser.add_argument('--freeze', type = bool, default = False, help = 'train backbond freeze')
+parser.add_argument('--retrain', type = bool, default = False, help = 'this option check weight retrain')
+
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 
 args = parser.parse_args()
@@ -43,7 +48,7 @@ args = parser.parse_args()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('GPU Use : ',torch.cuda.is_available())
 train_data = TrackNetLoader(args.data_path_x, args.data_path_y, augmentation = args.augmentation)
-train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size=args.batchsize, shuffle=True)
+train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size=args.batchsize, shuffle=True, persistent_workers=True)
 
 def outcome(data, y_pred, y_true, tol):
     n = y_pred.shape[0]
@@ -260,13 +265,14 @@ if args.retrain:
         checkpoint = torch.load(args.load_weight)
         model.load_state_dict(checkpoint['state_dict'])
         epoch = checkpoint['epoch']
+        print(epoch)
 
 else:
      print('======================new train weight=======================')
-     checkpoint = torch.load("weights/custom_b3.pth")
+     checkpoint = torch.load("weights/efficient_b3.pth")
      model.load_state_dict(checkpoint)
      
-if True:
+if args.freeze:
     print("==================back bone freeze==================")
     model = dfs_freeze(model)
     

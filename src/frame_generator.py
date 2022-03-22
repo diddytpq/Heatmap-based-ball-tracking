@@ -13,7 +13,7 @@ parser.add_argument('--dataset', type = str, default='tennis_FOV_3_dataset', hel
 args = parser.parse_args()
 
 data_folder_list = os.listdir("./" + args.dataset)
-data_folder_list = ['test_3']
+data_folder_list = ['gazebo']
 
 print(data_folder_list)
 
@@ -43,4 +43,4 @@ for folder_name in data_folder_list:
 			count += 1
 			success, image = cap.read()
 			print(videoName,count)
-
+			

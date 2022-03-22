@@ -1,5 +1,10 @@
 import os
 import sys
+from pathlib import Path
+
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.parents[0].as_posix()) 
+
 import json
 import torch
 import argparse
@@ -15,9 +20,9 @@ import math
 from PIL import Image
 import time
 from models.network import *
-from utils import *
+from models.network_b0 import *
 
-# python predict_custom.py --load_weight=weights/21~40/custom_11.tar
+from utils import *
 
 BATCH_SIZE = 1
 HEIGHT=288
@@ -25,7 +30,7 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/test_3.mp4', help='input video name for predict')
+                    default='videos/test_2.mov', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
@@ -40,6 +45,8 @@ parser.add_argument('--seed', type=int, default=1,
                     help='random seed (default: 1)')
 parser.add_argument('--record', type=bool, default=False,
                     help='record option')
+parser.add_argument('--tiny', type=bool,
+                    default=False, help='check predict img')
 
 args = parser.parse_args()
 
@@ -75,9 +82,16 @@ if args.record:
 #f.write('Frame,Visibility,X,Y,Time\n')
 
 ############### TrackNet ################
-#model = efficientnet_b3()
 
-model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+if args.tiny:
+    model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
+    checkpoint = torch.load(args.load_weight)
+    model.load_state_dict(checkpoint['state_dict'])
+
+else:
+    model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+    checkpoint = torch.load(args.load_weight)
+    model.load_state_dict(checkpoint['state_dict'])
 
 model.to(device)
 if args.optimizer == 'Ada':
@@ -87,9 +101,7 @@ if args.optimizer == 'Ada':
 else:
     optimizer = torch.optim.SGD(model.parameters(
     ), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
-checkpoint = torch.load(args.load_weight)
-model.load_state_dict(checkpoint['state_dict'])
-epoch = checkpoint['epoch']
+
 model.eval()
 
 input_img = []
@@ -130,7 +142,7 @@ while cap.isOpened():
     
     with torch.no_grad():
 
-        unit /= 255
+        unit = unit / 255
 
         h_pred = model(unit)
         torch.cuda.synchronize()
@@ -163,9 +175,9 @@ while cap.isOpened():
     #cv2.imshow("img2",input_img[1])
     #cv2.imshow("img3",input_img[2])
 
-    #cv2.imshow("h_pred",h_pred)
+    cv2.imshow("h_pred",h_pred)
 
-    #cv2.imshow("segment_img",segment_img)
+    cv2.imshow("segment_img",segment_img)
 
 
     t1 = time.time()

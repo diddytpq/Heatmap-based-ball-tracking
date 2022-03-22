@@ -6,6 +6,7 @@ import os
 import random
 import pandas as pd
 
+
 HEIGHT=288
 WIDTH=512
 mag = 1
@@ -22,7 +23,7 @@ def genHeatMap(w, h, cx, cy, r, mag):
 
 dataset = 'tennis_FOV_3_dataset'
 game_list = os.listdir("./" + dataset)
-game_list = ['test_1','test_2','test_3','test_4']
+game_list = ['gazebo']
 #game_list = ['FOV_1_match_1', 'FOV_1_match_2', 'FOV_1_match_3', 'FOV_1_match_4', 'FOV_1_match_5', 'FOV_2_match_1', 'FOV_2_match_2', 'FOV_2_match_3', 'FOV_2_match_4', 'FOV_2_match_5', 'FOV_3_match_1', 'FOV_3_match_2']
 
 #'match1','match2','match3','match4','match5','match6','match7','match8','match9','match10']
@@ -99,11 +100,11 @@ for game in game_list:
 # input_outputfile_name = 'data_path_csv/FOV_3_train_list_x.csv'
 # label_outputfile_name = 'data_path_csv/FOV_3_train_list_y.csv'
 
-#input_outputfile_name = 'data_path_csv/gazebo_train_list_x.csv'
-#label_outputfile_name = 'data_path_csv/gazebo_train_list_y.csv'
+input_outputfile_name = 'data_path_csv/gazebo_train_list_x.csv'
+label_outputfile_name = 'data_path_csv/gazebo_train_list_y.csv'
 
-input_outputfile_name = 'data_path_csv/test_input_total.csv'
-label_outputfile_name = 'data_path_csv/test_label_total.csv'
+#input_outputfile_name = 'data_path_csv/test_input_2.csv'
+#label_outputfile_name = 'data_path_csv/test_label_2.csv'
 
 with open(input_outputfile_name,'w') as outputfile:
     for i in range(len(train_x)):

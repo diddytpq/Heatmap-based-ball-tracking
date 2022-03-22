@@ -4,6 +4,8 @@ import json
 import torch
 import numpy as np
 
+import time
+
 from torch.utils.data import TensorDataset, DataLoader
 import torchvision.models as models
 import matplotlib.pyplot as plt
@@ -12,13 +14,13 @@ import itertools
 import cv2
 import math
 import argparse
-from models.network import *
+from models.network_b0 import *
 from dataloader_custom import TrackNetLoader
 
-#python train_custom.py --epochs=10 --multi_gpu=True --lr=0.001 --optimizer=Adam
+#python train_custom_backup.py --epochs=20 --multi_gpu=True --lr=1
 
 parser = argparse.ArgumentParser(description = 'train_custom')
-parser.add_argument('--batchsize', type = int, default = 10, help = 'input batch size for training (defalut: 8)')
+parser.add_argument('--batchsize', type = int, default = 24, help = 'input batch size for training (defalut: 8)')
 parser.add_argument('--epochs', type = int, default = 10, help = 'number of epochs to train (default: 30)')
 parser.add_argument('--lr', type = float, default = 1, help = 'learning rate (default: 1)')
 parser.add_argument('--tol', type = int, default = 4, help = 'tolerance values (defalut: 8)')
@@ -26,7 +28,7 @@ parser.add_argument('--optimizer', type = str, default = 'Adadelta', help = 'Ada
 parser.add_argument('--momentum', type = float, default = 0.9, help = 'momentum fator (default: 0.9)')
 parser.add_argument('--weight_decay', type = float, default = 5e-4, help = 'weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default = 1, help = 'random seed (default: 1)')
-parser.add_argument('--load_weight', type = str, default = 'weights/220214.tar', help = 'the weight you want to retrain')
+parser.add_argument('--load_weight', type = str, default = 'weights/custom_20.tar', help = 'the weight you want to retrain')
 parser.add_argument('--save_weight', type = str, default = 'custom', help = 'the weight you want to save')
 parser.add_argument('--debug', type = bool, default = False, help = 'check the predict img')
 parser.add_argument('--data_path_x', type = str, default = 'data_path_csv/FOV_3_train_list_x.csv', help = 'x data path')
@@ -40,7 +42,7 @@ args = parser.parse_args()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('GPU Use : ',torch.cuda.is_available())
 train_data = TrackNetLoader(args.data_path_x, args.data_path_y, augmentation = args.augmentation)
-train_loader = DataLoader(dataset = train_data, batch_size=args.batchsize, shuffle=True)
+train_loader = DataLoader(dataset = train_data, num_workers = 4, batch_size=args.batchsize, shuffle=True, persistent_workers=True)
 
 def outcome(data, y_pred, y_true, tol):
     n = y_pred.shape[0]
@@ -236,7 +238,7 @@ def dfs_freeze(model):
 
 total_accuracy_list = []
 
-model = efficientnet_b3()
+model = EfficientNet_b0(1,1)
 
 model.to(device)
 if args.optimizer == 'Adadelta':
@@ -248,11 +250,16 @@ elif args.optimizer == 'SGD':
 elif args.optimizer == 'Adam':
     optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
 
-"""if(args.load_weight):
+if(args.load_weight):
      print('======================Retrain=======================')
      checkpoint = torch.load(args.load_weight)
      model.load_state_dict(checkpoint['state_dict'])
-     epoch = checkpoint['epoch']"""
+     epoch = checkpoint['epoch']
+
+#checkpoint = torch.load("weights/efficient_b0.pth")
+#checkpoint = torch.load("weights/efficient_b0.pth")
+
+#model.load_state_dict(checkpoint)
 
 if(args.multi_gpu):
     if torch.cuda.device_count() > 1:

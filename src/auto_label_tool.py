@@ -14,7 +14,7 @@ import cv2
 import math
 from PIL import Image
 import time
-from network import *
+from models.network_backup import *
 import pickle
 
 BATCH_SIZE = 1
@@ -23,11 +23,11 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='tennis_FOV_3_dataset/FOV_3_match_3/rally_video/6.mov', help='input video name for label')
+                    default='tennis_FOV_3_dataset/gazebo/rally_video/2.mp4', help='input video name for label')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
-                    default='weights/220214.tar', help='input model weight for predict')
+                    default='weights/gazebo.tar', help='input model weight for predict')
 parser.add_argument('--optimizer', type=str, default='Ada',
                     help='Ada or SGD (default: Ada)')
 parser.add_argument('--momentum', type=float, default=0.9,
@@ -237,7 +237,7 @@ while cap.isOpened():
 
 
     print(r)
-    if r > 6 :
+    if r > 3 :
         data[current] = (x, y, r - 2)
 
     #h_pred = cv2.resize(h_pred, dsize=(width, height), fx=1, fy=1, interpolation=cv2.INTER_LINEAR)

@@ -1,5 +1,10 @@
 import numpy as np
 import cv2
+import sys
+from pathlib import Path
+
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.parents[0].as_posix()) 
 
 def find_ball(pred_image, image_ori, ratio_w, ratio_h):
 
@@ -75,7 +80,6 @@ def tran_input_img(img_list):
 
         #img = cv2.resize(img,(WIDTH, HEIGHT))
         img = np.asarray(img).transpose(2, 0, 1)
-
         trans_img.append(img[0])
         trans_img.append(img[1])
         trans_img.append(img[2])
@@ -104,13 +108,6 @@ def ball_segmentation(image_ori, image_pred, width, height):
     img = cv2.addWeighted(image_ori, 1, y_jet, 0.3, 0)
 
     return img
-
-def WBCE(y_pred, y_true):
-    eps = 1e-7
-    loss = (-1)*(torch.square(1 - y_pred) * y_true * torch.log(torch.clamp(y_pred, eps, 1)) +
-            torch.square(y_pred) * (1 - y_true) * torch.log(torch.clamp(1 - y_pred, eps, 1)))
-    return torch.mean(loss)
-
 
 def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
     # Plots one bounding box on image 'im' using OpenCV

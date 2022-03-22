@@ -242,4 +242,3 @@ def display(TP, TN, FP1, FP2, FN):
     print("Accuracy_2:", accuracy_2)
     print("Accuracy_3:", accuracy_3)
     print('=====================================================')
-
