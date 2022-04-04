@@ -17,6 +17,7 @@ weights/
 
 #dataset
 
+*.pkl
 data_path_csv/
 tennis_FOV_3_dataset/
 
