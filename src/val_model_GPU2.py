@@ -3,7 +3,7 @@ import torch
 import os
 import cv2
 from models.network import *
-from models.network_b0 import *
+from models.network_b0_ver2 import *
 
 import argparse
 from dataloader_custom import *

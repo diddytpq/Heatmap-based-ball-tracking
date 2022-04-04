@@ -14,10 +14,10 @@ import itertools
 import cv2
 import math
 import argparse
-from models.network_b0 import *
+from models.network_b0_ver2 import *
 from dataloader_custom import TrackNetLoader
 
-#python train_custom_backup.py --epochs=20 --multi_gpu=True --lr=1
+#python train_custom_backup.py --load_weight=weights/220325_tiny_ver2.tar --epochs=20 --multi_gpu=True --lr=1
 
 parser = argparse.ArgumentParser(description = 'train_custom')
 parser.add_argument('--batchsize', type = int, default = 24, help = 'input batch size for training (defalut: 8)')
@@ -256,10 +256,9 @@ if(args.load_weight):
      model.load_state_dict(checkpoint['state_dict'])
      epoch = checkpoint['epoch']
 
-#checkpoint = torch.load("weights/efficient_b0.pth")
-#checkpoint = torch.load("weights/efficient_b0.pth")
+# checkpoint = torch.load("weights/efficient_b0_ver2.pth")
+# model.load_state_dict(checkpoint)
 
-#model.load_state_dict(checkpoint)
 
 if(args.multi_gpu):
     if torch.cuda.device_count() > 1:

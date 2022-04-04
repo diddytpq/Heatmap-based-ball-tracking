@@ -1,10 +1,5 @@
 import os
 import sys
-from pathlib import Path
-
-FILE = Path(__file__).absolute()
-sys.path.append(FILE.parents[0].as_posix()) 
-
 import json
 import torch
 import argparse
@@ -20,9 +15,15 @@ import math
 from PIL import Image
 import time
 from models.network import *
-from models.network_b0 import *
+from models.network_b0_ver2 import *
 
 from utils import *
+
+import pyrealsense2 as rs
+
+# python predict_custom.py --load_weight=weights/21~40/custom_11.tar
+
+
 
 BATCH_SIZE = 1
 HEIGHT=288
@@ -30,17 +31,16 @@ WIDTH=512
 
 parser = argparse.ArgumentParser(description='Pytorch TrackNet6')
 parser.add_argument('--video_name', type=str,
-                    default='videos/test_2.mov', help='input video name for predict')
+                    default='videos/2.mov', help='input video name for predict')
 parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
                     default='weights/220304.tar', help='input model weight for predict')
+
 parser.add_argument('--seed', type=int, default=1,
                     help='random seed (default: 1)')
 parser.add_argument('--record', type=bool, default=False,
                     help='record option')
-parser.add_argument('--tiny', type=bool,
-                    default=False, help='check predict img')
 
 args = parser.parse_args()
 
@@ -50,25 +50,33 @@ print('GPU Use : ', torch.cuda.is_available())
 
 ################# video #################
 
+pipeline=rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 640, 360, rs.format.bgr8, 60)
+pipeline.start(config)
 
-cap = cv2.VideoCapture(args.video_name)
-try:
-    total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-except:
-    total_frames = -1
-fps = cap.get(cv2.CAP_PROP_FPS)
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
+
+
+# cap = cv2.VideoCapture(args.video_name)
+# try:
+#     total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+# except:
+#     total_frames = -1
+# fps = cap.get(cv2.CAP_PROP_FPS)
+height = 360
+width = 640
 
 
 ratio_h = height / HEIGHT
 ratio_w = width / WIDTH
 size = (width, height)
 
-if args.record:
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_video_path = args.video_name[:-4]+'_predict.mp4'
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, size)
+# if args.record:
+#     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+#     output_video_path = args.video_name[:-4]+'_predict.mp4'
+#     out = cv2.VideoWriter(output_video_path, fourcc, fps, size)
 
 #########################################
 
@@ -76,36 +84,42 @@ if args.record:
 #f.write('Frame,Visibility,X,Y,Time\n')
 
 ############### TrackNet ################
+#model = efficientnet_b3()
 
-if args.tiny:
-    model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
-    checkpoint = torch.load(args.load_weight)
-    model.load_state_dict(checkpoint['state_dict'])
+#model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
 
-else:
-    model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
-    checkpoint = torch.load(args.load_weight)
-    model.load_state_dict(checkpoint['state_dict'])
 
 model.to(device)
+
+checkpoint = torch.load(args.load_weight)
+model.load_state_dict(checkpoint['state_dict'])
+epoch = checkpoint['epoch']
 model.eval()
 
 input_img = []
 
 start_frame = 0
 
-cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
+#cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
 
-while cap.isOpened():
+while True:
 
     rets = []
     images = []
     frame_times = []
     
-    ret, frame = cap.read()
+    frames = pipeline.wait_for_frames()
+    depth_frame = frames.get_depth_frame()
+    color_frame = frames.get_color_frame()
 
-    if ret == 0:
-        break
+    if not depth_frame or not color_frame:
+            time.sleep(0.1)
+            continue
+
+    depth_image = np.asanyarray(depth_frame.get_data())
+    frame = np.asanyarray(color_frame.get_data())
+    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
 
     img = cv2.resize(frame,(WIDTH, HEIGHT))
 
@@ -128,7 +142,7 @@ while cap.isOpened():
     
     with torch.no_grad():
 
-        unit = unit / 255
+        unit /= 255
 
         h_pred = model(unit)
         torch.cuda.synchronize()
@@ -161,7 +175,7 @@ while cap.isOpened():
     #cv2.imshow("img2",input_img[1])
     #cv2.imshow("img3",input_img[2])
 
-    cv2.imshow("h_pred",h_pred)
+    #cv2.imshow("h_pred",h_pred)
 
     cv2.imshow("segment_img",segment_img)
 
@@ -174,7 +188,7 @@ while cap.isOpened():
 
     
     if args.record:
-        frame = cv2.resize(frame, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
+        frame = cv2.resize(segment_img, dsize=(width, height), interpolation=cv2.INTER_LINEAR)
         out.write(frame)
 
     key = cv2.waitKey(1)
@@ -184,7 +198,7 @@ while cap.isOpened():
 
 cv2.destroyAllWindows()
 #f.close()
-cap.release()
+pipeline.stop()
 
 if args.record:
     out.release()

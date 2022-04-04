@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import sys
 from pathlib import Path
+import torch
 
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix()) 
@@ -66,6 +67,7 @@ def find_ball_v2(pred_image, image_ori, ratio_w, ratio_h):
     #cv2.circle(image_ori, (int(x_cen * ratio_w), int(y_cen * ratio_h)),  3, (0,0,255), -1)
 
     return image_ori
+
 
 def tran_input_img(img_list):
 

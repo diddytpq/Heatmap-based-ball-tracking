@@ -19,7 +19,9 @@ import cv2
 import math
 from PIL import Image
 import time
-from models.test import *
+from models.network import *
+from models.network_b0 import *
+
 from utils import *
 
 BATCH_SIZE = 1
@@ -33,16 +35,12 @@ parser.add_argument('--lr', type=float, default=1e-1,
                     help='learning rate (default: 0.1)')
 parser.add_argument('--load_weight', type=str,
                     default='weights/220304.tar', help='input model weight for predict')
-parser.add_argument('--optimizer', type=str, default='Ada',
-                    help='Ada or SGD (default: Ada)')
-parser.add_argument('--momentum', type=float, default=0.9,
-                    help='momentum fator (default: 0.9)')
-parser.add_argument('--weight_decay', type=float,
-                    default=5e-4, help='weight decay (default: 5e-4)')
 parser.add_argument('--seed', type=int, default=1,
                     help='random seed (default: 1)')
 parser.add_argument('--record', type=bool, default=False,
                     help='record option')
+parser.add_argument('--tiny', type=bool,
+                    default=False, help='check predict img')
 
 args = parser.parse_args()
 
@@ -78,21 +76,23 @@ if args.record:
 #f.write('Frame,Visibility,X,Y,Time\n')
 
 ############### TrackNet ################
-model = EfficientNet(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
+
+if args.tiny:
+    model = EfficientNet_b0(1., 1.) # b3 width_coef = 1.2, depth_coef = 1.4
+    checkpoint = torch.load(args.load_weight)
+    model.load_state_dict(checkpoint['state_dict'])
+
+else:
+    model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
+    checkpoint = torch.load(args.load_weight)
+    model.load_state_dict(checkpoint['state_dict'])
 
 model.to(device)
-if args.optimizer == 'Ada':
-    optimizer = torch.optim.Adadelta(
-        model.parameters(), lr=args.lr, rho=0.9, eps=1e-06, weight_decay=0)
-    #optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
-else:
-    optimizer = torch.optim.SGD(model.parameters(
-    ), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
-
 model.eval()
 
 input_img = []
 
+avg_fps = []
 start_frame = 0
 
 cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame) #set start frame number
@@ -123,8 +123,8 @@ while cap.isOpened():
     t0 = time.time()
 
     unit = tran_input_img(input_img)
-
     unit = torch.from_numpy(unit).to(device, dtype=torch.float)
+
     torch.cuda.synchronize()
     
     with torch.no_grad():
@@ -140,6 +140,8 @@ while cap.isOpened():
         torch.cuda.synchronize()
         h_pred = (h_pred[0]).astype('uint8')
         h_pred = np.asarray(h_pred).transpose(1, 2, 0)
+        t1 = time.time()
+
         #print(h_pred.shape)
 
         h_pred = (150 < h_pred) * h_pred
@@ -167,11 +169,12 @@ while cap.isOpened():
     cv2.imshow("segment_img",segment_img)
 
 
-    t1 = time.time()
 
+    avg_fps.append(1/(t1 - t0))
 
-    print("FPS : ",1/(t1 - t0))
-    print((t1 - t0))
+    #print("FPS : ",1/(t1 - t0))
+    #print((t1 - t0))
+    print(np.mean(np.array(avg_fps)))
 
     
     if args.record:

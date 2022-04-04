@@ -1,18 +1,27 @@
 import math
 from re import X
 import sys
+from pathlib import Path
 
-sys.path.append("..")
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.parents[0].as_posix()) 
 
 import torch
 import torch.nn as nn
 
-from models.layers import conv_bn_act
-from models.layers import SamePadConv2d
-from models.layers import Flatten
-from models.layers import SEModule
-from models.layers import DropConnect
+from layers import conv_bn_act
+from layers import SamePadConv2d
+from layers import Flatten
+from layers import SEModule
+from layers import DropConnect
 
+class Swish(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        return x * self.sigmoid(x)
 
 class MBConv(nn.Module):
     def __init__(self, in_, out_, expand,
@@ -67,7 +76,7 @@ class MBBlock(nn.Module):
         return self.layers(x)
 
 
-class EfficientNet(nn.Module):
+class EfficientNet_b0(nn.Module):
     def __init__(self, width_coeff, depth_coeff,
                  depth_div=8, min_depth=None,
                  dropout_rate=0.3, drop_connect_rate=0.3):
@@ -103,72 +112,82 @@ class EfficientNet(nn.Module):
         self.Upsample = nn.Upsample(scale_factor=float(2), mode='bilinear', align_corners=False)
 
         self.Up_Block_1 = nn.Sequential(
-                            nn.Conv2d(520, 260, 1, stride=1, bias=False),
-                            nn.BatchNorm2d(260, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(432, 216, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(216, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(260, 260, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(260, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(216, 216, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(216, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(260, 136, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(136, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU()
+                            nn.Conv2d(216, 108, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(108, momentum=0.99, eps=1e-3),
+                            Swish()
                             )
 
         self.Up_Block_2 = nn.Sequential(
-                            nn.Conv2d(184, 92, 1, stride=1, bias=False),
-                            nn.BatchNorm2d(92, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(148, 74, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(74, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(92, 92, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(92, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(74, 74, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(74, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(92, 48, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(48, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU()
+                            nn.Conv2d(74, 37, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(37, momentum=0.99, eps=1e-3),
+                            Swish()
                             )
 
         self.Up_Block_3 = nn.Sequential(
-                                    nn.Conv2d(80, 40, 1, stride=1, bias=False),
-                                    nn.BatchNorm2d(40, momentum=0.99, eps=1e-3),
-                                    torch.nn.ReLU(),
+                            nn.Conv2d(61, 30, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(30, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                                    nn.Conv2d(40, 40, 3, stride=1, padding="same", bias=False),
-                                    nn.BatchNorm2d(40, momentum=0.99, eps=1e-3),
-                                    torch.nn.ReLU(),
+                            # nn.Conv2d(40, 40, 3, stride=1, padding="same", bias=False),
+                            # nn.BatchNorm2d(40, momentum=0.99, eps=1e-3),
+                            # Swish(),
 
-                                    nn.Conv2d(40, 32, 3, stride=1, padding="same", bias=False),
-                                    nn.BatchNorm2d(32, momentum=0.99, eps=1e-3),
-                                    torch.nn.ReLU()
-                                    )
+                            nn.Conv2d(30, 15, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(15, momentum=0.99, eps=1e-3),
+                            Swish()
+                            )
 
         self.Up_Block_4 = nn.Sequential(
-                            nn.Conv2d(56, 28, 1, stride=1, bias=False),
-                            nn.BatchNorm2d(28, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(31, 16, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(16, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(28, 28, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(28, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
 
-                            nn.Conv2d(28, 24, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(24, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU()
+                            # nn.Conv2d(128, 64, 3, stride=1, padding="same", bias=False),
+                            # nn.BatchNorm2d(64, momentum=0.99, eps=1e-3),
+                            # Swish(),
+
+                            nn.Conv2d(16, 16, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(16, momentum=0.99, eps=1e-3),
+                            Swish()
                             )
 
         self.Up_Block_5 = nn.Sequential(
-                            nn.Conv2d(27, 16, 1, stride=1, bias=False),
-                            nn.BatchNorm2d(16, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            nn.Conv2d(19, 10, 1, stride=1, bias=False),
+                            nn.BatchNorm2d(10, momentum=0.99, eps=1e-3),
+                            Swish(),
 
-                            nn.Conv2d(16, 8, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(8, momentum=0.99, eps=1e-3),
-                            torch.nn.ReLU(),
+                            # nn.Conv2d(16, 16, 3, stride=1, padding="same", bias=False),
+                            # nn.BatchNorm2d(16, momentum=0.99, eps=1e-3),
+                            # Swish(),
 
-                            nn.Conv2d(8, 1, 3, stride=1, padding="same", bias=False),
-                            nn.BatchNorm2d(1, momentum=0.99, eps=1e-3),
+                            # nn.Conv2d(16, 16, 3, stride=1, padding="same", bias=False),
+                            # nn.BatchNorm2d(16, momentum=0.99, eps=1e-3),
+                            # Swish(),
+
+                            nn.Conv2d(10, 3, 3, stride=1, padding="same", bias=False),
+                            nn.BatchNorm2d(3, momentum=0.99, eps=1e-3),
+                            Swish(),
+
+                            # nn.Conv2d(3, 3, 1, stride=1, bias=False),
+                            nn.Conv2d(3, 1, 1, stride=1, bias=False)
+
                             )
 
         self.init_weights()
@@ -187,13 +206,13 @@ class EfficientNet(nn.Module):
 
         stem = self.stem(x_in) #torch.Size([1, 40, 144, 256])
 
-        x_1 = self.MBBlock_1(stem) #torch.Size([1, 24, 144, 256])
-        x_2 = self.MBBlock_2(x_1)  #torch.Size([1, 32, 72, 128])
-        x_3 = self.MBBlock_3(x_2)  #torch.Size([1, 48, 36, 64])
-        x_4 = self.MBBlock_4(x_3)  #torch.Size([1, 96, 18, 32])
-        x_5 = self.MBBlock_5(x_4)  #torch.Size([1, 136, 18, 32])
-        x_6 = self.MBBlock_6(x_5)  #torch.Size([1, 232, 9, 16])
-        x_7 = self.MBBlock_7(x_6)  #torch.Size([1, 384, 9, 16])
+        x_1 = self.MBBlock_1(stem) #torch.Size([1, 16, 144, 256])
+        x_2 = self.MBBlock_2(x_1)  #torch.Size([1, 24, 72, 128])
+        x_3 = self.MBBlock_3(x_2)  #torch.Size([1, 40, 36, 64])
+        x_4 = self.MBBlock_4(x_3)  #torch.Size([1, 80, 18, 32])
+        x_5 = self.MBBlock_5(x_4)  #torch.Size([1, 112, 18, 32])
+        x_6 = self.MBBlock_6(x_5)  #torch.Size([1, 192, 9, 16])
+        x_7 = self.MBBlock_7(x_6)  #torch.Size([1, 320, 9, 16])
 
         x = self.Upsample(x_7)
         x = torch.cat((x, x_5), 1)
@@ -221,15 +240,17 @@ class EfficientNet(nn.Module):
 
 
 if __name__ == "__main__":
-    print("Efficient B3 Summary")
+    print("Efficient B0 Summary")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('GPU Use : ',torch.cuda.is_available())
     
-    data = torch.randn(50, 1, 9, 288, 512).to(device)
 
-    model = EfficientNet(1.2, 1.4).to(device)
-    epoch = 50
+    model = EfficientNet_b0(1, 1).to(device)
+    epoch = 150
     time_list =[]
+    model.eval()
+    
+    data = torch.randn(epoch, 1, 9, 288, 512).to(device)
 
     from torchsummary import summary
     summary(model.cuda(), (9, 288, 512))
@@ -258,3 +279,31 @@ if __name__ == "__main__":
     print("avg time : ", np.mean(time_list))
     print("avg FPS : ", 1 / np.mean(time_list))
 
+
+
+
+    """data = torch.randn(50, 1, 9, 288, 512)
+
+    model = EfficientNet(1.2, 1.4)
+    epoch = 50
+    time_list =[]
+
+    from torchsummary import summary
+    summary(model, (9, 288, 512), device = 'cpu')
+
+    def dfs_freeze(model):
+        for name, child in model.named_children():
+            if name not in ['Up_Block_1','Up_Block_2','Up_Block_3','Up_Block_4','Up_Block_5']:
+                for param in child.parameters():
+                    param.requires_grad_(False)
+
+                dfs_freeze(child)
+
+        return model
+
+    if True:
+        print("==================back bone freeze==================")
+        model = dfs_freeze(model)
+
+
+        summary(model, (9, 288, 512), device = 'cpu')"""

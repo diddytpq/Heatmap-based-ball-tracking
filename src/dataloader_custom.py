@@ -194,26 +194,29 @@ def outcome(y_pred, y_true, tol):
 
 
 def evaluation(TP, TN, FP1, FP2, FN):
+    
     try:
         accuracy = (TP + TN) / (TP + TN + FP1 + FP2 + FN)
     except:
         accuracy = 0
+
     try:
         precision = TP / (TP + FP1 + FP2)
     except:
         precision = 0
+
     try:
         recall = TP / (TP + FN)
     except:
         recall = 0
     
     try:
-        accuracy_2 = (TP + TN) / (TP + TN + FP1 +  FN)
+        accuracy_2 = (TP + TN) / (TP + TN + FP1 + FN)
     except:
         accuracy_2 = 0
 
     try:
-        accuracy_3 = (TP) / (TP + FP1 +  FN)
+        accuracy_3 = (TP) / (TP + FP1 + FN)
     except:
         accuracy_3 = 0
         
