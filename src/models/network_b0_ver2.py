@@ -253,7 +253,7 @@ if __name__ == "__main__":
     data = torch.randn(epoch, 1, 9, 288, 512).to(device)
 
     from torchsummary import summary
-    summary(model.cuda(), (9, 288, 512))
+    summary(model, (9, 288, 512))
 
     import time
     import numpy as np
@@ -261,12 +261,12 @@ if __name__ == "__main__":
     with torch.no_grad():
         for i in range(epoch):
             t0 = time.time()
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
             output = model(data[i])
 
             h_pred = (output * 255).cpu().numpy()
 
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
             h_pred = (h_pred[0]).astype('uint8')
             h_pred = np.asarray(h_pred).transpose(1, 2, 0)
             t1 = time.time()        

@@ -246,7 +246,6 @@ def dfs_freeze(model):
 total_accuracy_list = []
 
 model = EfficientNet(1.2, 1.4) # b3 width_coef = 1.2, depth_coef = 1.4
-# model = EfficientNet_b0(1,1)
 
 model.to(device)
 

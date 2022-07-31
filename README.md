@@ -1,19 +1,29 @@
 # heatmap based tennis ball tracking
 
-### Package
+## 1. Make Conda env
+        conda env create --file env.yaml
 
-- First, you have to install cuda, cudnn and pytorch, tutorial:
-https://medium.com/@zhanwenchen/install-cuda-and-cudnn-for-tensorflow-gpu-on-ubuntu-79306e4ac04e
+## 2. Run Demo video
+
+        python src/predict_custom.py
+
+## 3. Run realsensec Camera version
+
+        python src/rs_predict_custom.py
+
+## 4. Make Train data
 
 
-        
-        $ sudo apt-get install git
-        $ sudo apt-get install python3-pip
-        $ pip install torch 
-        
+## 5. Model Train
+
+        python src/train_custom.py --multi_gpu=True --load_weight=weights/220304.tar --freeze=Ture
+
+## 6. Run Test to Val data
+
+        python src/val_model.py --load_weight=weights/custom_20.tar
 
 <br>
 
 ## reference
-https://gitlab.com/lukelin/tracknetv2-pytorch
-- Label Tool : https://hackmd.io/CQmL6OKKSGKY9xUvU8n0iQ
+        Tracknet-v2 : https://gitlab.com/lukelin/tracknetv2-pytorch
+        Label Tool : https://hackmd.io/CQmL6OKKSGKY9xUvU8n0iQ
