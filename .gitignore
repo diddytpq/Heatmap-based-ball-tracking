@@ -11,6 +11,8 @@ videos/
 
 # network weight
 *.tar
+*.tar.gz
+*.zip
 *.pt
 
 weights/
